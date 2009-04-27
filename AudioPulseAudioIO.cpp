@@ -266,7 +266,9 @@ AudioPulseAudioIO::streamReadStatic(pa_stream *stream,
 void
 AudioPulseAudioIO::streamRead(size_t available)
 {
+#ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
     cerr << "AudioPulseAudioIO::streamRead(" << available << ")" << endl;
+#endif
 
     QMutexLocker locker(&m_mutex);
 
@@ -357,6 +359,8 @@ AudioPulseAudioIO::streamRead(size_t available)
 
     m_target->putSamples(nframes, tmpbuf);
     m_target->setInputLevels(peakLeft, peakRight);
+
+    pa_stream_drop(m_in);
 
     return;
 }
