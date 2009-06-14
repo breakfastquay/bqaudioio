@@ -2,8 +2,6 @@
 
 #include "AudioCallbackPlayTarget.h"
 
-#include <iostream>
-
 namespace Turbot {
 
 AudioCallbackPlayTarget::AudioCallbackPlayTarget(AudioCallbackPlaySource *source) :
