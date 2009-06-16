@@ -6,6 +6,7 @@
 #ifdef HAVE_JACK
 
 #include <jack/jack.h>
+#include <dlfcn.h>
 #include <QObject> // so as to pull in Q_OS_* etc
 
 namespace Turbot {
