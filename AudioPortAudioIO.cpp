@@ -14,6 +14,17 @@ namespace Turbot {
 
 //#define DEBUG_AUDIO_PORT_AUDIO_IO 1
 
+extern "C" {
+void
+PaAlsa_EnableRealtimeScheduling(PaStream *, int);
+}
+
+static void
+enableRT(PaStream *stream) {
+    // This will link only if the PA ALSA host API is linked statically
+    PaAlsa_EnableRealtimeScheduling(stream, 1);
+}
+
 AudioPortAudioIO::AudioPortAudioIO(AudioCallbackRecordTarget *target,
 				   AudioCallbackPlaySource *source) :
     AudioCallbackIO(target, source),
@@ -72,6 +83,8 @@ AudioPortAudioIO::AudioPortAudioIO(AudioCallbackRecordTarget *target,
     m_outputLatency = int(info->outputLatency * m_sampleRate + 0.001);
     m_inputLatency = int(info->inputLatency * m_sampleRate + 0.001);
     if (m_bufferSize == 0) m_bufferSize = m_outputLatency;
+
+    enableRT(m_stream);
 
     err = Pa_StartStream(m_stream);
 
