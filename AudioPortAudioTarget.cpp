@@ -16,6 +16,21 @@ namespace Turbot {
 
 //#define DEBUG_AUDIO_PORT_AUDIO_TARGET 1
 
+#ifdef __LINUX__
+extern "C" {
+void
+PaAlsa_EnableRealtimeScheduling(PaStream *, int);
+}
+#endif
+
+static void
+enableRT(PaStream *stream) {
+#ifdef __LINUX__
+    // This will link only if the PA ALSA host API is linked statically
+    PaAlsa_EnableRealtimeScheduling(stream, 1);
+#endif
+}
+
 AudioPortAudioTarget::AudioPortAudioTarget(AudioCallbackPlaySource *source) :
     AudioCallbackPlayTarget(source),
     m_stream(0),
@@ -72,6 +87,8 @@ AudioPortAudioTarget::AudioPortAudioTarget(AudioCallbackPlaySource *source) :
 	    m_bufferSize = 1024;
  	}
     }
+
+    enableRT(m_stream);
 
     err = Pa_StartStream(m_stream);
 

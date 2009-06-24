@@ -13,6 +13,21 @@
 
 namespace Turbot {
 
+#ifdef __LINUX__
+extern "C" {
+void
+PaAlsa_EnableRealtimeScheduling(PaStream *, int);
+}
+#endif
+
+static void
+enableRT(PaStream *stream) {
+#ifdef __LINUX__
+    // This will link only if the PA ALSA host API is linked statically
+    PaAlsa_EnableRealtimeScheduling(stream, 1);
+#endif
+}
+
 AudioPortAudioSource::AudioPortAudioSource(AudioCallbackRecordTarget *target) :
     AudioCallbackRecordSource(target),
     m_stream(0),
@@ -56,6 +71,8 @@ AudioPortAudioSource::AudioPortAudioSource(AudioCallbackRecordTarget *target) :
     const PaStreamInfo *info = Pa_GetStreamInfo(m_stream);
     m_latency = int(info->inputLatency * m_sampleRate + 0.001);
     if (m_bufferSize < m_latency) m_bufferSize = m_latency;
+
+    enableRT(m_stream);
 
     err = Pa_StartStream(m_stream);
 
