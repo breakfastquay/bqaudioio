@@ -39,8 +39,8 @@ protected:
 
     int m_bufferSize;
     int m_sampleRate;
-    int m_outputLatency;
     int m_inputLatency;
+    int m_outputLatency;
 };
 
 }
