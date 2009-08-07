@@ -9,7 +9,7 @@
 
 #include "AudioCallbackIO.h"
 
-#include "base/Thread.h"
+#include "system/Thread.h"
 
 #include <QMutex>
 
