@@ -11,9 +11,15 @@
 #include <cassert>
 #include <cmath>
 
-namespace Turbot {
+#ifndef __LINUX__
+#ifndef _WIN32
+#include <pthread.h>
+#endif
+#endif
 
 //#define DEBUG_AUDIO_PORT_AUDIO_IO 1
+
+namespace Turbot {
 
 #ifdef __LINUX__
 extern "C" {
@@ -22,12 +28,32 @@ PaAlsa_EnableRealtimeScheduling(PaStream *, int);
 }
 #endif
 
-static void
+static bool // true if "can attempt on this platform", not "succeeded"
 enableRT(PaStream *stream) {
 #ifdef __LINUX__
     // This will link only if the PA ALSA host API is linked statically
     PaAlsa_EnableRealtimeScheduling(stream, 1);
+    return true;
+#else
+    return false;
 #endif
+}
+
+static bool // true if "can attempt on this platform", not "succeeded"
+enableRT() { // on current thread
+#ifndef __LINUX__
+#ifndef _WIN32
+    sched_param param;
+    param.sched_priority = 20;
+    if (pthread_setschedparam(pthread_self(), SCHED_RR, &param)) {
+        std::cerr << "AudioPortAudioIO: NOTE: couldn't set RT scheduling class" << std::endl;
+    } else {
+        std::cerr << "AudioPortAudioIO: NOTE: successfully set RT scheduling class" << std::endl;
+    }
+    return true;
+#endif
+#endif
+    return false;
 }
 
 AudioPortAudioIO::AudioPortAudioIO(AudioCallbackRecordTarget *target,
@@ -37,7 +63,8 @@ AudioPortAudioIO::AudioPortAudioIO(AudioCallbackRecordTarget *target,
     m_bufferSize(0),
     m_sampleRate(0),
     m_inputLatency(0),
-    m_outputLatency(0)
+    m_outputLatency(0),
+    m_prioritySet(false)
 {
     PaError err;
 
@@ -63,8 +90,8 @@ AudioPortAudioIO::AudioPortAudioIO(AudioCallbackRecordTarget *target,
     op.channelCount = 2;
     ip.sampleFormat = paFloat32;
     op.sampleFormat = paFloat32;
-    ip.suggestedLatency = 0.2;
-    op.suggestedLatency = 0.2;
+    ip.suggestedLatency = 1.0; //!!! was 0.2
+    op.suggestedLatency = 1.0; //!!! was 0.2
     ip.hostApiSpecificStreamInfo = 0;
     op.hostApiSpecificStreamInfo = 0;
     err = Pa_OpenStream(&m_stream, &ip, &op, m_sampleRate,
@@ -89,7 +116,9 @@ AudioPortAudioIO::AudioPortAudioIO(AudioCallbackRecordTarget *target,
     m_inputLatency = int(info->inputLatency * m_sampleRate + 0.001);
     if (m_bufferSize == 0) m_bufferSize = m_outputLatency;
 
-    enableRT(m_stream);
+    if (enableRT(m_stream)) {
+        m_prioritySet = true;
+    }
 
     err = Pa_StartStream(m_stream);
 
@@ -167,6 +196,11 @@ AudioPortAudioIO::process(const void *inputBuffer, void *outputBuffer,
 #ifdef DEBUG_AUDIO_PORT_AUDIO_IO    
     std::cout << "AudioPortAudioIO::process(" << nframes << ")" << std::endl;
 #endif
+
+    if (!m_prioritySet) {
+        enableRT();
+        m_prioritySet = true;
+    }
 
     if (!m_source && !m_target) return 0;
 

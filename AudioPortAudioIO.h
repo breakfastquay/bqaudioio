@@ -42,6 +42,7 @@ protected:
     int m_sampleRate;
     int m_inputLatency;
     int m_outputLatency;
+    bool m_prioritySet;
 };
 
 }
