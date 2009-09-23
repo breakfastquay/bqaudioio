@@ -6,21 +6,34 @@
 
 #ifdef HAVE_VST
 
+#include <vst2.x/audioeffect.h>
+
 #include "AudioCallbackIO.h"
 
+class QWidget;
+
 namespace Turbot {
+
+class PluginGUIConstructor
+{
+public:
+    virtual QWidget *construct() = 0;
+};
 
 class AudioVSTPluginIO : public AudioCallbackIO
 {
 public:
     AudioVSTPluginIO(AudioCallbackRecordTarget *recordTarget,
-		     AudioCallbackPlaySource *playSource);
+		     AudioCallbackPlaySource *playSource,
+                     audioMasterCallback cb);
     virtual ~AudioVSTPluginIO();
 
     virtual bool isSourceOK() const;
     virtual bool isTargetOK() const;
 
     virtual double getCurrentTime() const;
+
+    void registerGUIConstructor(PluginGUIConstructor *);
 
 protected:
     class Plugin;
