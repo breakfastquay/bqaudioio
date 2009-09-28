@@ -9,6 +9,7 @@
 
 #include <iostream>
 #include <cmath>
+#include <cstdio>
 
 //#define DEBUG_AUDIO_JACK_SOURCE 1
 
