@@ -90,8 +90,10 @@ AudioPortAudioIO::AudioPortAudioIO(AudioCallbackRecordTarget *target,
     op.channelCount = 2;
     ip.sampleFormat = paFloat32;
     op.sampleFormat = paFloat32;
-    ip.suggestedLatency = 1.0; //!!! was 0.2
-    op.suggestedLatency = 1.0; //!!! was 0.2
+//    ip.suggestedLatency = 1.0; //!!! was 0.2
+//    op.suggestedLatency = 1.0; //!!! was 0.2
+    ip.suggestedLatency = 0.2;
+    op.suggestedLatency = 0.2;
     ip.hostApiSpecificStreamInfo = 0;
     op.hostApiSpecificStreamInfo = 0;
     err = Pa_OpenStream(&m_stream, &ip, &op, m_sampleRate,
@@ -105,7 +107,7 @@ AudioPortAudioIO::AudioPortAudioIO(AudioCallbackRecordTarget *target,
     }
 
     if (err != paNoError) {
-	std::cerr << "ERROR: AudioPortAudioIO: Failed to open PortAudio stream" << std::endl;
+	std::cerr << "ERROR: AudioPortAudioIO: Failed to open PortAudio stream: " << Pa_GetErrorText(err) << std::endl;
 	m_stream = 0;
 	Pa_Terminate();
 	return;
