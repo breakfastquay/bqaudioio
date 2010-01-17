@@ -22,6 +22,11 @@ public:
         m_guiConstructor(0)
     {
         //!!! obviously, needs to vary from one plugin to the next!
+
+        // NB the id "tbtR" has been registered at
+        // service.steinberg.de/databases/plugin.nsf/plugIn?openForm
+        // as the ID for "Rubber Band Audio Processor"
+
         setUniqueID("tbtR");
 
         setNumInputs(0);
