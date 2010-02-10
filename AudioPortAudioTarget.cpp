@@ -54,13 +54,17 @@ AudioPortAudioTarget::AudioPortAudioTarget(AudioCallbackPlaySource *source) :
 	m_sampleRate = m_source->getSourceSampleRate();
     }
 
-//    std::cerr << "Sample rate: " << m_sampleRate << std::endl;
+    std::cerr << "Sample rate: " << m_sampleRate << std::endl;
 
     PaStreamParameters op;
     op.device = Pa_GetDefaultOutputDevice();
+
+    std::cerr << "device: " << op.device << std::endl;
+    
     op.channelCount = 2;
     op.sampleFormat = paFloat32;
     op.suggestedLatency = 1.0; //!!! was 0.2
+//    op.suggestedLatency = 0.2;
     op.hostApiSpecificStreamInfo = 0;
     err = Pa_OpenStream(&m_stream, 0, &op, m_sampleRate,
                         paFramesPerBufferUnspecified,
@@ -73,7 +77,7 @@ AudioPortAudioTarget::AudioPortAudioTarget(AudioCallbackPlaySource *source) :
     }
 
     if (err != paNoError) {
-	std::cerr << "ERROR: AudioPortAudioTarget: Failed to open PortAudio stream" << std::endl;
+	std::cerr << "ERROR: AudioPortAudioTarget: Failed to open PortAudio stream: " << Pa_GetErrorText(err) << std::endl;
 	m_stream = 0;
 	Pa_Terminate();
 	return;
