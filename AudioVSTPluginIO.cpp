@@ -12,55 +12,60 @@
 
 namespace Turbot {
 
-class AudioVSTPluginIO::Plugin : public AudioEffect
+AudioVSTPlugin::AudioVSTPlugin(audioMasterCallback cb) :
+    AudioEffect(cb, 0, 0),
+    m_sampleRate(0),
+    m_blockSize(0),
+    m_io(0),
+    m_gui(0),
+    m_guiConstructor(0)
 {
-public:
-    Plugin(AudioVSTPluginIO *io, audioMasterCallback cb) :
-	AudioEffect(cb, 0, 0),
-	m_io(io),
-        m_gui(0),
-        m_guiConstructor(0)
-    {
-        //!!! obviously, needs to vary from one plugin to the next!
+    setNumInputs(0);
+    setNumOutputs(2);
+    canProcessReplacing(true);
+    canDoubleReplacing(false);
 
-        // NB the id "tbtR" has been registered at
-        // service.steinberg.de/databases/plugin.nsf/plugIn?openForm
-        // as the ID for "Rubber Band Audio Processor"
+    // subclass must call setUniqueID
 
-        setUniqueID("tbtR");
+    // m_io is created by subclass
+}
 
-        setNumInputs(0);
-        setNumOutputs(2);
-        canProcessReplacing(true);
-        canDoubleReplacing(false);
-    }
+~AudioVSTPlugin()
+{
+    delete m_io;
+}
 
-    ~Plugin() { }
+void
+AudioVSTPlugin::registerGUIConstructor(PluginGUIConstructor *p) { m_guiConstructor = w; }
 
-    void registerGUIConstructor(PluginGUIConstructor *p) { m_guiConstructor = w; }
+void
+AudioVSTPlugin::getVendorString(char *n) 
+{
+    // max here is 64 chars
+    vst_strncpy(n, "Breakfast Quay", kVstMaxVendorStrLen);
+}
 
-    virtual void open () {}	///< Called when plug-in is initialized
-    virtual void close () {}	///< Called when plug-in will be released
-    virtual void suspend () {}	///< Called when plug-in is switched to off
-    virtual void resume () {}	///< Called when plug-in is switched to on
+void
+AudioVSTPlugin::setSampleRate (float sampleRate)
+{
+    m_sampleRate = sampleRate;
+}
 
-    virtual void setSampleRate (float sampleRate);
-    virtual void setBlockSize (VstInt32 blockSize);
-
-    virtual void processReplacing (float** inputs, float** outputs, VstInt32 sampleFrames) = 0;
-
-private:
-    PluginGUIConstructor *m_guiConstructor;
-    QWidget *m_gui;
-};
+void
+AudioVSTPlugin::setBlockSize(VstInt32 blockSize)
+{
+    //!!! what if we already started processing?
+    m_blockSize = blockSize;
+}
     
 
 AudioVSTPluginIO::AudioVSTPluginIO(AudioCallbackRecordTarget *recordTarget,
 				   AudioCallbackPlaySource *playSource,
-                                   audioMasterCallback cb) :
+                                   AudioVSTPlugin *plugin) :
     AudioCallbackIO(recordTarget, playSource),
-    m_plugin(0)
+    m_plugin(plugin)
 {
+/*
     try {
 	m_plugin = new Plugin(this, cb);
     } catch (std::exception &e) {
@@ -68,23 +73,24 @@ AudioVSTPluginIO::AudioVSTPluginIO(AudioCallbackRecordTarget *recordTarget,
 	delete m_plugin;
 	m_plugin = 0;
     }
+*/
 }
 
 AudioVSTPluginIO::~AudioVSTPluginIO()
 {
-    delete m_plugin;
+//    delete m_plugin; //!!! no, it owns me
 }
 
 bool
 AudioVSTPluginIO::isSourceOK() const
 {
-    return (m_plugin != 0);
+    return (m_plugin != 0); //!!! no, source is something else
 }
 
 bool
 AudioVSTPluginIO::isTargetOK() const
 {
-    return (m_plugin != 0);
+    return (m_plugin && m_plugin->isOK());
 }
 
 void

@@ -20,12 +20,55 @@ public:
     virtual QWidget *construct() = 0;
 };
 
+class AudioVSTPluginIO;
+
+class AudioVSTPlugin : public AudioEffect
+{
+public:
+    AudioVSTPlugin(audioMasterCallback cb);
+    virtual ~AudioVSTPlugin() { }
+
+    void AudioVSTPluginIO *getIO();
+
+    void registerGUIConstructor(PluginGUIConstructor *p); //???
+
+    // Do not implement getEffectName -- leave to subclass
+
+    // Do not implement getProductString -- leave to subclass
+
+    virtual void getVendorString(char *n);
+
+    virtual void open () {}	///< Called when plug-in is initialized
+    virtual void close () {}	///< Called when plug-in will be released
+    virtual void suspend () {}	///< Called when plug-in is switched to off
+    virtual void resume () {}	///< Called when plug-in is switched to on
+
+    virtual void setSampleRate (float sampleRate);
+    virtual void setBlockSize (VstInt32 blockSize);
+
+    float getSampleRate() { return m_sampleRate; }
+    int getBlockSize() { return m_blockSize; }
+
+    bool isOK() {
+        return m_sampleRate > 0 && m_blockSize > 0;
+    }
+
+    // Do not implement processReplacing -- leave to subclass
+
+private:
+    float m_sampleRate;
+    int m_blockSize;
+    AudioVSTPluginIO *m_io;
+    PluginGUIConstructor *m_guiConstructor;
+    QWidget *m_gui;
+};
+
 class AudioVSTPluginIO : public AudioCallbackIO
 {
 public:
     AudioVSTPluginIO(AudioCallbackRecordTarget *recordTarget,
 		     AudioCallbackPlaySource *playSource,
-                     audioMasterCallback cb);
+                     AudioVSTPlugin *plugin);
     virtual ~AudioVSTPluginIO();
 
     virtual bool isSourceOK() const;
@@ -33,11 +76,10 @@ public:
 
     virtual double getCurrentTime() const;
 
-    void registerGUIConstructor(PluginGUIConstructor *);
+    void registerGUIConstructor(PluginGUIConstructor *);//???
 
 protected:
-    class Plugin;
-    Plugin *m_plugin;
+    AudioVSTPlugin *m_plugin;
 };
 
 }
