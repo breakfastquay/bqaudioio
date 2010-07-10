@@ -70,9 +70,6 @@ protected:
 
     int m_bufferSize;
     int m_sampleRate;
-    int m_latency;
-    bool m_playLatencySet;
-    bool m_recordLatencySet;
     bool m_done;
 };
 

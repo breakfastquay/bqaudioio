@@ -30,9 +30,6 @@ AudioPulseAudioIO::AudioPulseAudioIO(AudioCallbackRecordTarget *target,
     m_loopThread(0),
     m_bufferSize(0),
     m_sampleRate(0),
-    m_latency(0),
-    m_playLatencySet(false),
-    m_recordLatencySet(false),
     m_done(false)
 {
 #ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
@@ -145,19 +142,11 @@ AudioPulseAudioIO::streamWrite(size_t requested)
 
     QMutexLocker locker(&m_mutex);
 
-    if (!m_playLatencySet) {
-        pa_usec_t latency = 0;
-        int negative = 0;
-        if (pa_stream_get_latency(m_out, &latency, &negative)) {
-            cerr << "AudioPulseAudioIO::streamWrite: Failed to query latency" << endl;
-        }
-        cerr << "Latency = " << latency << " usec" << endl;
+    pa_usec_t latency = 0;
+    int negative = 0;
+    if (!pa_stream_get_latency(m_out, &latency, &negative)) {
         int latframes = (latency / 1000000.f) * float(m_sampleRate);
-        cerr << "that's " << latframes << " frames" << endl;
-        if (latframes > 0) {
-            m_source->setTargetPlayLatency(latframes);
-            m_playLatencySet = true;
-        }
+        if (latframes > 0) m_source->setTargetPlayLatency(latframes);
     }
 
     static float *output = 0;
@@ -273,19 +262,11 @@ AudioPulseAudioIO::streamRead(size_t available)
 
     QMutexLocker locker(&m_mutex);
 
-    if (!m_recordLatencySet) {
-        pa_usec_t latency = 0;
-        int negative = 0;
-        if (pa_stream_get_latency(m_in, &latency, &negative)) {
-            cerr << "AudioPulseAudioIO::streamRead: Failed to query latency" << endl;
-        }
-        cerr << "Record latency = " << latency << " usec" << endl;
+    pa_usec_t latency = 0;
+    int negative = 0;
+    if (!pa_stream_get_latency(m_in, &latency, &negative)) {
         int latframes = (latency / 1000000.f) * float(m_sampleRate);
-        cerr << "that's " << latframes << " frames" << endl;
-        if (latframes > 0) {
-            m_target->setSourceRecordLatency(latframes);
-            m_recordLatencySet = true;
-        }
+        if (latframes > 0) m_target->setSourceRecordLatency(latframes);
     }
 
     size_t sz = pa_stream_readable_size(m_in);
@@ -395,12 +376,41 @@ AudioPulseAudioIO::streamStateChanged(pa_stream *stream)
             break;
 
         case PA_STREAM_READY:
+        {
             if (stream == m_in) {
                 cerr << "AudioPulseAudioIO::streamStateChanged: Capture ready" << endl;
             } else {
                 cerr << "AudioPulseAudioIO::streamStateChanged: Playback ready" << endl;
             }                
+
+            pa_usec_t latency = 0;
+            int negative = 0;
+            if (pa_stream_get_latency(m_out, &latency, &negative)) {
+                cerr << "AudioPulseAudioIO::contextStateChanged: Failed to query latency" << endl;
+            }
+            cerr << "Latency = " << latency << " usec" << endl;
+            int latframes = (latency / 1000000.f) * float(m_sampleRate);
+            cerr << "that's " << latframes << " frames" << endl;
+
+            const pa_buffer_attr *attr;
+            if (!(attr = pa_stream_get_buffer_attr(m_out))) {
+                cerr << "AudioPulseAudioIO::streamStateChanged: Cannot query stream buffer attributes" << endl;
+                m_source->setTargetBlockSize(4096);
+                m_source->setTargetSampleRate(m_sampleRate);
+                m_source->setTargetPlayLatency(latframes);
+            } else {
+                cerr << "AudioPulseAudioIO::streamStateChanged: stream max length = " << attr->maxlength << endl;
+                int latency = attr->tlength;
+                cerr << "latency = " << latency << endl;
+                m_source->setTargetBlockSize(attr->maxlength);
+                m_source->setTargetSampleRate(m_sampleRate);
+                m_source->setTargetPlayLatency(latframes);
+            }
+
+            m_target->setSourceSampleRate(m_sampleRate);
+
             break;
+        }
 
         case PA_STREAM_FAILED:
         default:
@@ -472,35 +482,6 @@ AudioPulseAudioIO::contextStateChanged()
                  0, 0)) { //??? return value
                 cerr << "AudioPulseAudioIO: Failed to connect playback stream" << endl;
             }
-
-
-            //!!! connect record
-
-            pa_usec_t latency = 0;
-            int negative = 0;
-            if (pa_stream_get_latency(m_out, &latency, &negative)) {
-                cerr << "AudioPulseAudioIO::contextStateChanged: Failed to query latency" << endl;
-            }
-            cerr << "Latency = " << latency << " usec" << endl;
-            int latframes = (latency / 1000000.f) * float(m_sampleRate);
-            cerr << "that's " << latframes << " frames" << endl;
-
-            const pa_buffer_attr *attr;
-            if (!(attr = pa_stream_get_buffer_attr(m_out))) {
-                cerr << "AudioPulseAudioIO::contextStateChanged: Cannot query stream buffer attributes" << endl;
-                m_source->setTargetBlockSize(4096);
-                m_source->setTargetSampleRate(m_sampleRate);
-                m_source->setTargetPlayLatency(latframes);
-            } else {
-                cerr << "AudioPulseAudioIO::contextStateChanged: stream max length = " << attr->maxlength << endl;
-                int latency = attr->tlength;
-                cerr << "latency = " << latency << endl;
-                m_source->setTargetBlockSize(attr->maxlength);
-                m_source->setTargetSampleRate(m_sampleRate);
-                m_source->setTargetPlayLatency(latframes);
-            }
-
-            m_target->setSourceSampleRate(m_sampleRate);
 
             break;
         }
