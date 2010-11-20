@@ -4,9 +4,6 @@
 #ifndef _AUDIO_PORT_AUDIO_SOURCE_H_
 #define _AUDIO_PORT_AUDIO_SOURCE_H_
 
-//!!!
-#define HAVE_PORTAUDIO 1
-
 #ifdef HAVE_PORTAUDIO
 
 #include <portaudio.h>
