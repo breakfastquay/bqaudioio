@@ -7,6 +7,8 @@
 #include "AudioCallbackPlaySource.h"
 #include "AudioCallbackRecordTarget.h"
 
+#include "system/VectorOps.h"
+
 #include <iostream>
 #include <cmath>
 
@@ -154,10 +156,12 @@ AudioPulseAudioIO::streamWrite(size_t requested)
     static size_t tmpbufch = 0;
     static size_t tmpbufsz = 0;
 
-    size_t sourceChannels = m_source->getSourceChannelCount();
+    std::cerr << "AudioPulseAudioIO" << std::endl;
 
-    // Because we offer pan, we always want at least 2 channels
-    if (sourceChannels < 2) sourceChannels = 2;
+    size_t sourceChannels = m_source->getSourceChannelCount();
+    if (sourceChannels == 0) {
+        return;
+    }
 
     size_t nframes = requested / (sourceChannels * sizeof(float)); //!!! this should be dividing by how many channels PA thinks it has!
 

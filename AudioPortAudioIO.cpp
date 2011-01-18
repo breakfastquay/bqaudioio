@@ -7,6 +7,8 @@
 #include "AudioCallbackPlaySource.h"
 #include "AudioCallbackRecordTarget.h"
 
+#include "system/VectorOps.h"
+
 #include <iostream>
 #include <cassert>
 #include <cmath>
@@ -215,11 +217,15 @@ AudioPortAudioIO::process(const void *inputBuffer, void *outputBuffer,
     static size_t tmpbufch = 0;
     static size_t tmpbufsz = 0;
 
-    size_t sourceChannels = m_source ? m_source->getSourceChannelCount() : 0;
-    size_t targetChannels = m_target ? m_target->getChannelCount() : 0;
+    std::cerr << "AudioPortAudioIO" << std::endl;
 
-    // Because we offer pan, we always want at least 2 channels
-    if (sourceChannels < 2) sourceChannels = 2;
+    size_t sourceChannels = m_source ? m_source->getSourceChannelCount() : 0;
+    if (sourceChannels == 0) {
+        v_zero(output, nframes * 2);
+        return 0;
+    }
+
+    size_t targetChannels = m_target ? m_target->getChannelCount() : 0;
 
     if (!tmpbuf || tmpbufch != sourceChannels || tmpbufsz < m_bufferSize) {
 
