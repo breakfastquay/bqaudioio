@@ -178,12 +178,8 @@ AudioPortAudioTarget::process(const void *, void *outputBuffer,
     static size_t resampbufch = 0;
     static size_t resampbufsz = 0;
 
-    std::cerr << "AudioPortAudioTarget" << std::endl;
-
     size_t sourceChannels = m_source->getSourceChannelCount();
     if (sourceChannels == 0) {
-        std::cerr << "zero " << nframes*2 << std::endl;
-
         v_zero(output, nframes * 2);
         return 0;
     }
@@ -234,8 +230,6 @@ AudioPortAudioTarget::process(const void *, void *outputBuffer,
     for (size_t ch = 0; ch < 2; ++ch) {
 	
 	float peak = 0.0;
-
-        std::cerr << "ch = " << ch << ", sourceChannels = " << sourceChannels << std::endl;
 
 	if (ch < sourceChannels) {
 

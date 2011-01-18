@@ -156,8 +156,6 @@ AudioPulseAudioIO::streamWrite(size_t requested)
     static size_t tmpbufch = 0;
     static size_t tmpbufsz = 0;
 
-    std::cerr << "AudioPulseAudioIO" << std::endl;
-
     size_t sourceChannels = m_source->getSourceChannelCount();
     if (sourceChannels == 0) {
         return;

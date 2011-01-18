@@ -217,8 +217,6 @@ AudioPortAudioIO::process(const void *inputBuffer, void *outputBuffer,
     static size_t tmpbufch = 0;
     static size_t tmpbufsz = 0;
 
-    std::cerr << "AudioPortAudioIO" << std::endl;
-
     size_t sourceChannels = m_source ? m_source->getSourceChannelCount() : 0;
     if (sourceChannels == 0) {
         v_zero(output, nframes * 2);
