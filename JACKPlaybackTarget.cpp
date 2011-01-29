@@ -3,9 +3,9 @@
 
 #ifdef HAVE_JACK
 
-#include "AudioJACKTarget.h"
+#include "JACKPlaybackTarget.h"
 #include "DynamicJACK.h"
-#include "AudioCallbackPlaySource.h"
+#include "ApplicationPlaybackSource.h"
 
 #include <iostream>
 #include <cmath>
@@ -13,8 +13,8 @@
 
 namespace Turbot {
 
-AudioJACKTarget::AudioJACKTarget(AudioCallbackPlaySource *source) :
-    AudioCallbackPlayTarget(source),
+JACKPlaybackTarget::JACKPlaybackTarget(ApplicationPlaybackSource *source) :
+    SystemPlaybackTarget(source),
     m_client(0),
     m_bufferSize(0),
     m_sampleRate(0)
@@ -28,7 +28,7 @@ AudioJACKTarget::AudioJACKTarget(AudioCallbackPlaySource *source) :
 	m_client = jack_client_new(name);
 	if (!m_client) {
 	    std::cerr
-		<< "ERROR: AudioJACKTarget: Failed to connect to JACK server"
+		<< "ERROR: JACKPlaybackTarget: Failed to connect to JACK server"
 		<< std::endl;
 	}
     }
@@ -41,14 +41,14 @@ AudioJACKTarget::AudioJACKTarget(AudioCallbackPlaySource *source) :
     jack_set_process_callback(m_client, processStatic, this);
 
     if (jack_activate(m_client)) {
-	std::cerr << "ERROR: AudioJACKTarget: Failed to activate JACK client"
+	std::cerr << "ERROR: JACKPlaybackTarget: Failed to activate JACK client"
 		  << std::endl;
     }
 
     setup(2);
 }
 
-AudioJACKTarget::~AudioJACKTarget()
+JACKPlaybackTarget::~JACKPlaybackTarget()
 {
     if (m_client) {
 	jack_deactivate(m_client);
@@ -57,13 +57,13 @@ AudioJACKTarget::~AudioJACKTarget()
 }
 
 bool
-AudioJACKTarget::isTargetOK() const
+JACKPlaybackTarget::isTargetOK() const
 {
     return (m_client != 0);
 }
 
 double
-AudioJACKTarget::getCurrentTime() const
+JACKPlaybackTarget::getCurrentTime() const
 {
     if (m_client && m_sampleRate) {
         return double(jack_frame_time(m_client)) / double(m_sampleRate);
@@ -73,13 +73,13 @@ AudioJACKTarget::getCurrentTime() const
 }
 
 int
-AudioJACKTarget::processStatic(jack_nframes_t nframes, void *arg)
+JACKPlaybackTarget::processStatic(jack_nframes_t nframes, void *arg)
 {
-    return ((AudioJACKTarget *)arg)->process(nframes);
+    return ((JACKPlaybackTarget *)arg)->process(nframes);
 }
 
 void
-AudioJACKTarget::setup(size_t channels)
+JACKPlaybackTarget::setup(size_t channels)
 {
     m_mutex.lock();
 
@@ -101,7 +101,7 @@ AudioJACKTarget::setup(size_t channels)
     while (ports[physicalPortCount]) ++physicalPortCount;
 
 #ifdef DEBUG_AUDIO_JACK_TARGET    
-    std::cerr << "AudioJACKTarget::sourceModelReplaced: have " << channels << " channels and " << physicalPortCount << " physical ports" << std::endl;
+    std::cerr << "JACKPlaybackTarget::sourceModelReplaced: have " << channels << " channels and " << physicalPortCount << " physical ports" << std::endl;
 #endif
 
     while (m_outputs.size() < channels) {
@@ -119,7 +119,7 @@ AudioJACKTarget::setup(size_t channels)
 
 	if (!port) {
 	    std::cerr
-		<< "ERROR: AudioJACKTarget: Failed to create JACK output port "
+		<< "ERROR: JACKPlaybackTarget: Failed to create JACK output port "
 		<< m_outputs.size() << std::endl;
 	} else {
 	    m_source->setTargetPlayLatency(jack_port_get_latency(port));
@@ -144,7 +144,7 @@ AudioJACKTarget::setup(size_t channels)
 }
 
 int
-AudioJACKTarget::process(jack_nframes_t nframes)
+JACKPlaybackTarget::process(jack_nframes_t nframes)
 {
     if (!m_mutex.tryLock()) {
 	return 0;
@@ -156,7 +156,7 @@ AudioJACKTarget::process(jack_nframes_t nframes)
     }
 
 #ifdef DEBUG_AUDIO_JACK_TARGET    
-    std::cout << "AudioJACKTarget::process(" << nframes << "): have a source" << std::endl;
+    std::cout << "JACKPlaybackTarget::process(" << nframes << "): have a source" << std::endl;
 #endif
 
 #ifdef DEBUG_AUDIO_JACK_TARGET    

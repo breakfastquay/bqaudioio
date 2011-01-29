@@ -8,18 +8,18 @@
 
 namespace Turbot {
 
-class AudioCallbackRecordTarget;
+class ApplicationRecordTarget;
 
-class AudioCallbackRecordSource
+class SystemRecordSource
 {
 public:
-    AudioCallbackRecordSource(AudioCallbackRecordTarget *target);
-    virtual ~AudioCallbackRecordSource();
+    SystemRecordSource(ApplicationRecordTarget *target);
+    virtual ~SystemRecordSource();
 
     virtual bool isSourceOK() const = 0;
 
 protected:
-    AudioCallbackRecordTarget *m_target;
+    ApplicationRecordTarget *m_target;
 };
 
 }

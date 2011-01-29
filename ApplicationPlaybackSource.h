@@ -10,10 +10,10 @@
 
 namespace Turbot {
 
-class AudioCallbackPlaySource
+class ApplicationPlaybackSource
 {
 public:
-    virtual ~AudioCallbackPlaySource() { }
+    virtual ~ApplicationPlaybackSource() { }
 
     virtual size_t getSourceSampleRate() = 0; // 0 for unknown or don't care
     virtual size_t getSourceChannelCount() = 0;

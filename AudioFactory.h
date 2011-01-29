@@ -6,19 +6,19 @@
 
 namespace Turbot {
 
-class AudioCallbackRecordSource;
-class AudioCallbackRecordTarget;
-class AudioCallbackPlayTarget;
-class AudioCallbackPlaySource;
-class AudioCallbackIO;
+class SystemRecordSource;
+class ApplicationRecordTarget;
+class SystemPlaybackTarget;
+class ApplicationPlaybackSource;
+class SystemAudioIO;
 
 class AudioFactory 
 {
 public:
-    static AudioCallbackRecordSource *createCallbackRecordSource(AudioCallbackRecordTarget *);
-    static AudioCallbackPlayTarget *createCallbackPlayTarget(AudioCallbackPlaySource *);
-    static AudioCallbackIO *createCallbackIO(AudioCallbackRecordTarget *,
-                                             AudioCallbackPlaySource *);
+    static SystemRecordSource *createCallbackRecordSource(ApplicationRecordTarget *);
+    static SystemPlaybackTarget *createCallbackPlayTarget(ApplicationPlaybackSource *);
+    static SystemAudioIO *createCallbackIO(ApplicationRecordTarget *,
+                                             ApplicationPlaybackSource *);
 };
 
 }

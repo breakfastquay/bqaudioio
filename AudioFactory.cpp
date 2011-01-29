@@ -3,27 +3,27 @@
 
 #include "AudioFactory.h"
 
-#include "AudioJACKTarget.h"
-#include "AudioPortAudioTarget.h"
+#include "JACKPlaybackTarget.h"
+#include "PortAudioPlaybackTarget.h"
 
-#include "AudioJACKSource.h"
-#include "AudioPortAudioSource.h"
+#include "JACKRecordSource.h"
+#include "PortAudioRecordSource.h"
 
-#include "AudioJACKIO.h"
-#include "AudioPortAudioIO.h"
-#include "AudioPulseAudioIO.h"
+#include "JACKAudioIO.h"
+#include "PortAudioIO.h"
+#include "PulseAudioIO.h"
 
 #include <iostream>
 
 namespace Turbot {
 
-AudioCallbackPlayTarget *
-AudioFactory::createCallbackPlayTarget(AudioCallbackPlaySource *source)
+SystemPlaybackTarget *
+AudioFactory::createCallbackPlayTarget(ApplicationPlaybackSource *source)
 {
-    AudioCallbackPlayTarget *target = 0;
+    SystemPlaybackTarget *target = 0;
 
 #ifdef HAVE_JACK
-    target = new AudioJACKTarget(source);
+    target = new JACKPlaybackTarget(source);
     if (target->isTargetOK()) return target;
     else {
 	std::cerr << "WARNING: AudioFactory::createCallbackTarget: Failed to open JACK target" << std::endl;
@@ -32,7 +32,7 @@ AudioFactory::createCallbackPlayTarget(AudioCallbackPlaySource *source)
 #endif
 
 #ifdef HAVE_PORTAUDIO
-    target = new AudioPortAudioTarget(source);
+    target = new PortAudioPlaybackTarget(source);
     if (target->isTargetOK()) return target;
     else {
 	std::cerr << "WARNING: AudioFactory::createCallbackTarget: Failed to open PortAudio target" << std::endl;
@@ -44,13 +44,13 @@ AudioFactory::createCallbackPlayTarget(AudioCallbackPlaySource *source)
     return 0;
 }
 
-AudioCallbackRecordSource *
-AudioFactory::createCallbackRecordSource(AudioCallbackRecordTarget *target)
+SystemRecordSource *
+AudioFactory::createCallbackRecordSource(ApplicationRecordTarget *target)
 {
-    AudioCallbackRecordSource *source = 0;
+    SystemRecordSource *source = 0;
 
 #ifdef HAVE_JACK
-    source = new AudioJACKSource(target);
+    source = new JACKRecordSource(target);
     if (source->isSourceOK()) return source;
     else {
 	std::cerr << "WARNING: AudioFactory::createCallbackRecordSource: Failed to open JACK source" << std::endl;
@@ -59,7 +59,7 @@ AudioFactory::createCallbackRecordSource(AudioCallbackRecordTarget *target)
 #endif
 
 #ifdef HAVE_PORTAUDIO
-    source = new AudioPortAudioSource(target);
+    source = new PortAudioRecordSource(target);
     if (source->isSourceOK()) return source;
     else {
 	std::cerr << "WARNING: AudioFactory::createCallbackRecordSource: Failed to open PortAudio source" << std::endl;
@@ -71,14 +71,14 @@ AudioFactory::createCallbackRecordSource(AudioCallbackRecordTarget *target)
     return 0;
 }
 
-AudioCallbackIO *
-AudioFactory::createCallbackIO(AudioCallbackRecordTarget *target,
-                               AudioCallbackPlaySource *source)
+SystemAudioIO *
+AudioFactory::createCallbackIO(ApplicationRecordTarget *target,
+                               ApplicationPlaybackSource *source)
 {
-    AudioCallbackIO *io = 0;
+    SystemAudioIO *io = 0;
 
 #ifdef HAVE_JACK
-    io = new AudioJACKIO(target, source);
+    io = new JACKAudioIO(target, source);
     if (io->isSourceOK() && io->isTargetOK()) return io;
     else {
 	std::cerr << "WARNING: AudioFactory::createCallbackIO: Failed to open JACK I/O" << std::endl;
@@ -87,7 +87,7 @@ AudioFactory::createCallbackIO(AudioCallbackRecordTarget *target,
 #endif
 
 #ifdef HAVE_LIBPULSE
-    io = new AudioPulseAudioIO(target, source);
+    io = new PulseAudioIO(target, source);
     if (io->isSourceOK() && io->isTargetOK()) return io;
     else {
 	std::cerr << "WARNING: AudioFactory::createCallbackIO: Failed to open PulseAudio I/O" << std::endl;
@@ -96,7 +96,7 @@ AudioFactory::createCallbackIO(AudioCallbackRecordTarget *target,
 #endif
 
 #ifdef HAVE_PORTAUDIO
-    io = new AudioPortAudioIO(target, source);
+    io = new PortAudioIO(target, source);
     if (io->isSourceOK() && io->isTargetOK()) return io;
     else {
 	std::cerr << "WARNING: AudioFactory::createCallbackIO: Failed to open PortAudio I/O" << std::endl;

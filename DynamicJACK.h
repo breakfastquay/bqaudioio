@@ -39,7 +39,7 @@ static void *symbol(const char *name)
             if (!library) library = ::dlopen("libjack.so.0", RTLD_NOW);
             if (!library) library = ::dlopen("libjack.so", RTLD_NOW);
             if (!library) {
-                std::cerr << "WARNING: AudioJACKTarget: Failed to load JACK library: "
+                std::cerr << "WARNING: JACKPlaybackTarget: Failed to load JACK library: "
                           << ::dlerror() << " (tried .so, .so.0, .so.1)"
                           << std::endl;
             }
@@ -49,7 +49,7 @@ static void *symbol(const char *name)
     }
     void *symbol = ::dlsym(library, name);
     if (!symbol) {
-        std::cerr << "WARNING: AudioJACKTarget: Failed to locate symbol "
+        std::cerr << "WARNING: JACKPlaybackTarget: Failed to locate symbol "
                   << name << ": " << ::dlerror() << std::endl;
     }
     symbols[name] = symbol;

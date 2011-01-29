@@ -3,8 +3,8 @@
 
 #ifdef HAVE_PORTAUDIO
 
-#include "AudioPortAudioSource.h"
-#include "AudioCallbackRecordTarget.h"
+#include "PortAudioRecordSource.h"
+#include "ApplicationRecordTarget.h"
 
 #include <iostream>
 #include <cassert>
@@ -29,20 +29,20 @@ enableRT(PaStream *stream) {
 #endif
 }
 
-AudioPortAudioSource::AudioPortAudioSource(AudioCallbackRecordTarget *target) :
-    AudioCallbackRecordSource(target),
+PortAudioRecordSource::PortAudioRecordSource(ApplicationRecordTarget *target) :
+    SystemRecordSource(target),
     m_stream(0),
     m_bufferSize(0),
     m_sampleRate(0),
     m_latency(0)
 {
-    std::cerr << "AudioPortAudioSource::AudioPortAudioSource" << std::endl;
+    std::cerr << "PortAudioRecordSource::PortAudioRecordSource" << std::endl;
 
     PaError err;
 
     err = Pa_Initialize();
     if (err != paNoError) {
-	std::cerr << "ERROR: AudioPortAudioSource: Failed to initialize PortAudio" << std::endl;
+	std::cerr << "ERROR: PortAudioRecordSource: Failed to initialize PortAudio" << std::endl;
 	return;
     }
 
@@ -63,7 +63,7 @@ AudioPortAudioSource::AudioPortAudioSource(AudioCallbackRecordTarget *target) :
                         paNoFlag, processStatic, this);
 
     if (err != paNoError) {
-	std::cerr << "ERROR: AudioPortAudioSource: Failed to open PortAudio stream" << std::endl;
+	std::cerr << "ERROR: PortAudioRecordSource: Failed to open PortAudio stream" << std::endl;
 	m_stream = 0;
 	Pa_Terminate();
 	return;
@@ -78,7 +78,7 @@ AudioPortAudioSource::AudioPortAudioSource(AudioCallbackRecordTarget *target) :
     err = Pa_StartStream(m_stream);
 
     if (err != paNoError) {
-	std::cerr << "ERROR: AudioPortAudioSource: Failed to start PortAudio stream" << std::endl;
+	std::cerr << "ERROR: PortAudioRecordSource: Failed to start PortAudio stream" << std::endl;
 	Pa_CloseStream(m_stream);
 	m_stream = 0;
 	Pa_Terminate();
@@ -86,50 +86,50 @@ AudioPortAudioSource::AudioPortAudioSource(AudioCallbackRecordTarget *target) :
     }
 
     if (m_target) {
-	std::cerr << "AudioPortAudioSource: block size " << m_bufferSize << std::endl;
+	std::cerr << "PortAudioRecordSource: block size " << m_bufferSize << std::endl;
 	m_target->setSourceBlockSize(m_bufferSize);
 	m_target->setSourceSampleRate(m_sampleRate);
 	m_target->setSourceRecordLatency(m_latency);
     }
 }
 
-AudioPortAudioSource::~AudioPortAudioSource()
+PortAudioRecordSource::~PortAudioRecordSource()
 {
     if (m_stream) {
 	PaError err;
 	err = Pa_CloseStream(m_stream);
 	if (err != paNoError) {
-	    std::cerr << "ERROR: AudioPortAudioSource: Failed to close PortAudio stream" << std::endl;
+	    std::cerr << "ERROR: PortAudioRecordSource: Failed to close PortAudio stream" << std::endl;
 	}
 	Pa_Terminate();
     }
 }
 
 bool
-AudioPortAudioSource::isSourceOK() const
+PortAudioRecordSource::isSourceOK() const
 {
     return (m_stream != 0);
 }
 
 int
-AudioPortAudioSource::processStatic(const void *input, void *output,
+PortAudioRecordSource::processStatic(const void *input, void *output,
                                     unsigned long nframes,
                                     const PaStreamCallbackTimeInfo *timeInfo,
                                     PaStreamCallbackFlags flags, void *data)
 {
-    return ((AudioPortAudioSource *)data)->process(input, output,
+    return ((PortAudioRecordSource *)data)->process(input, output,
                                                    nframes, timeInfo,
                                                    flags);
 }
 
 int
-AudioPortAudioSource::process(const void *inputBuffer, void *outputBuffer,
+PortAudioRecordSource::process(const void *inputBuffer, void *outputBuffer,
                               unsigned long nframes,
                               const PaStreamCallbackTimeInfo *,
                               PaStreamCallbackFlags)
 {
 #ifdef DEBUG_AUDIO_PORT_AUDIO_SOURCE    
-    std::cout << "AudioPortAudioSource::process(" << nframes << ")" << std::endl;
+    std::cout << "PortAudioRecordSource::process(" << nframes << ")" << std::endl;
 #endif
 
     if (!m_target) return 0;

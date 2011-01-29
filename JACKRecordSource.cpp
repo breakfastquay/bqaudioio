@@ -3,8 +3,8 @@
 
 #ifdef HAVE_JACK
 
-#include "AudioJACKSource.h"
-#include "AudioCallbackRecordTarget.h"
+#include "JACKRecordSource.h"
+#include "ApplicationRecordTarget.h"
 #include "DynamicJACK.h"
 
 #include <iostream>
@@ -15,8 +15,8 @@
 
 namespace Turbot {
 
-AudioJACKSource::AudioJACKSource(AudioCallbackRecordTarget *target) :
-    AudioCallbackRecordSource(target),
+JACKRecordSource::JACKRecordSource(ApplicationRecordTarget *target) :
+    SystemRecordSource(target),
     m_client(0),
     m_bufferSize(0),
     m_sampleRate(0)
@@ -30,7 +30,7 @@ AudioJACKSource::AudioJACKSource(AudioCallbackRecordTarget *target) :
 	m_client = jack_client_new(name);
 	if (!m_client) {
 	    std::cerr
-		<< "ERROR: AudioJACKSource: Failed to connect to JACK server"
+		<< "ERROR: JACKRecordSource: Failed to connect to JACK server"
 		<< std::endl;
 	}
     }
@@ -44,7 +44,7 @@ AudioJACKSource::AudioJACKSource(AudioCallbackRecordTarget *target) :
     jack_set_process_callback(m_client, processStatic, this);
 
     if (jack_activate(m_client)) {
-	std::cerr << "ERROR: AudioJACKSource: Failed to activate JACK client"
+	std::cerr << "ERROR: JACKRecordSource: Failed to activate JACK client"
 		  << std::endl;
     }
 
@@ -68,7 +68,7 @@ AudioJACKSource::AudioJACKSource(AudioCallbackRecordTarget *target) :
 
 	if (!port) {
 	    std::cerr
-		<< "ERROR: AudioJACKSource: Failed to create JACK input port "
+		<< "ERROR: JACKRecordSource: Failed to create JACK input port "
 		<< m_inputs.size() << std::endl;
 	} else {
 	    m_target->setSourceRecordLatency(jack_port_get_latency(port));
@@ -78,7 +78,7 @@ AudioJACKSource::AudioJACKSource(AudioCallbackRecordTarget *target) :
     }
 }
 
-AudioJACKSource::~AudioJACKSource()
+JACKRecordSource::~JACKRecordSource()
 {
     if (m_client) {
 	jack_deactivate(m_client);
@@ -87,32 +87,32 @@ AudioJACKSource::~AudioJACKSource()
 }
 
 bool
-AudioJACKSource::isSourceOK() const
+JACKRecordSource::isSourceOK() const
 {
     return (m_client != 0);
 }
 
 int
-AudioJACKSource::processStatic(jack_nframes_t nframes, void *arg)
+JACKRecordSource::processStatic(jack_nframes_t nframes, void *arg)
 {
-    return ((AudioJACKSource *)arg)->process(nframes);
+    return ((JACKRecordSource *)arg)->process(nframes);
 }
 
 int
-AudioJACKSource::xrunStatic(void *arg)
+JACKRecordSource::xrunStatic(void *arg)
 {
-    return ((AudioJACKSource *)arg)->xrun();
+    return ((JACKRecordSource *)arg)->xrun();
 }
 
 int
-AudioJACKSource::process(jack_nframes_t nframes)
+JACKRecordSource::process(jack_nframes_t nframes)
 {
     if (m_inputs.size() < m_target->getChannelCount()) {
 	return 0;
     }
 
 #ifdef DEBUG_AUDIO_JACK_SOURCE    
-    std::cout << "AudioJACKSource::process(" << nframes << "), have " << m_inputs.size() << " inputs" << std::endl;
+    std::cout << "JACKRecordSource::process(" << nframes << "), have " << m_inputs.size() << " inputs" << std::endl;
 #endif
 
 #ifdef DEBUG_AUDIO_JACK_SOURCE    
@@ -154,9 +154,9 @@ AudioJACKSource::process(jack_nframes_t nframes)
 }
 
 int
-AudioJACKSource::xrun()
+JACKRecordSource::xrun()
 {
-    std::cerr << "AudioJACKSource: xrun!" << std::endl;
+    std::cerr << "JACKRecordSource: xrun!" << std::endl;
     if (m_target) m_target->audioProcessingOverload();
     return 0;
 }

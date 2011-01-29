@@ -3,10 +3,10 @@
 
 #ifdef HAVE_JACK
 
-#include "AudioJACKIO.h"
+#include "JACKAudioIO.h"
 #include "DynamicJACK.h"
-#include "AudioCallbackPlaySource.h"
-#include "AudioCallbackRecordTarget.h"
+#include "ApplicationPlaybackSource.h"
+#include "ApplicationRecordTarget.h"
 
 #include <iostream>
 #include <cmath>
@@ -16,9 +16,9 @@
 
 namespace Turbot {
 
-AudioJACKIO::AudioJACKIO(AudioCallbackRecordTarget *target,
-			 AudioCallbackPlaySource *source) :
-    AudioCallbackIO(target, source),
+JACKAudioIO::JACKAudioIO(ApplicationRecordTarget *target,
+			 ApplicationPlaybackSource *source) :
+    SystemAudioIO(target, source),
     m_client(0),
     m_bufferSize(0),
     m_sampleRate(0)
@@ -32,7 +32,7 @@ AudioJACKIO::AudioJACKIO(AudioCallbackRecordTarget *target,
 	m_client = jack_client_new(name);
 	if (!m_client) {
 	    std::cerr
-		<< "ERROR: AudioJACKIO: Failed to connect to JACK server"
+		<< "ERROR: JACKAudioIO: Failed to connect to JACK server"
 		<< std::endl;
 	}
     }
@@ -46,14 +46,14 @@ AudioJACKIO::AudioJACKIO(AudioCallbackRecordTarget *target,
     jack_set_process_callback(m_client, processStatic, this);
 
     if (jack_activate(m_client)) {
-	std::cerr << "ERROR: AudioJACKIO: Failed to activate JACK client"
+	std::cerr << "ERROR: JACKAudioIO: Failed to activate JACK client"
 		  << std::endl;
     }
 
     setup(2);
 }
 
-AudioJACKIO::~AudioJACKIO()
+JACKAudioIO::~JACKAudioIO()
 {
     if (m_client) {
 	jack_deactivate(m_client);
@@ -62,19 +62,19 @@ AudioJACKIO::~AudioJACKIO()
 }
 
 bool
-AudioJACKIO::isSourceOK() const
+JACKAudioIO::isSourceOK() const
 {
     return (m_client != 0);
 }
 
 bool
-AudioJACKIO::isTargetOK() const
+JACKAudioIO::isTargetOK() const
 {
     return (m_client != 0);
 }
 
 double
-AudioJACKIO::getCurrentTime() const
+JACKAudioIO::getCurrentTime() const
 {
     if (m_client && m_sampleRate) {
         return double(jack_frame_time(m_client)) / double(m_sampleRate);
@@ -84,19 +84,19 @@ AudioJACKIO::getCurrentTime() const
 }
 
 int
-AudioJACKIO::processStatic(jack_nframes_t nframes, void *arg)
+JACKAudioIO::processStatic(jack_nframes_t nframes, void *arg)
 {
-    return ((AudioJACKIO *)arg)->process(nframes);
+    return ((JACKAudioIO *)arg)->process(nframes);
 }
 
 int
-AudioJACKIO::xrunStatic(void *arg)
+JACKAudioIO::xrunStatic(void *arg)
 {
-    return ((AudioJACKIO *)arg)->xrun();
+    return ((JACKAudioIO *)arg)->xrun();
 }
 
 void
-AudioJACKIO::setup(size_t channels)
+JACKAudioIO::setup(size_t channels)
 {
     m_mutex.lock();
 
@@ -134,7 +134,7 @@ AudioJACKIO::setup(size_t channels)
     while (capPorts && capPorts[capPortCount]) ++capPortCount;
 
 #ifdef DEBUG_AUDIO_JACK_IO    
-    std::cerr << "AudioJACKIO::setup: have " << channels << " channels, " << capPortCount << " capture ports, " << playPortCount << " playback ports" << std::endl;
+    std::cerr << "JACKAudioIO::setup: have " << channels << " channels, " << capPortCount << " capture ports, " << playPortCount << " playback ports" << std::endl;
 #endif
 
     if (m_source) {
@@ -154,7 +154,7 @@ AudioJACKIO::setup(size_t channels)
 
             if (!port) {
                 std::cerr
-                    << "ERROR: AudioJACKIO: Failed to create JACK output port "
+                    << "ERROR: JACKAudioIO: Failed to create JACK output port "
                     << m_outputs.size() << std::endl;
                 return;
             } else {
@@ -188,7 +188,7 @@ AudioJACKIO::setup(size_t channels)
 
             if (!port) {
                 std::cerr
-                    << "ERROR: AudioJACKIO: Failed to create JACK input port "
+                    << "ERROR: JACKAudioIO: Failed to create JACK input port "
                     << m_inputs.size() << std::endl;
                 return;
             } else {
@@ -225,7 +225,7 @@ AudioJACKIO::setup(size_t channels)
 }
 
 int
-AudioJACKIO::process(jack_nframes_t nframes)
+JACKAudioIO::process(jack_nframes_t nframes)
 {
     if (!m_mutex.tryLock()) {
 	return 0;
@@ -237,7 +237,7 @@ AudioJACKIO::process(jack_nframes_t nframes)
     }
 
 #ifdef DEBUG_AUDIO_JACK_IO    
-    std::cout << "AudioJACKIO::process(" << nframes << "): have a purpose in life" << std::endl;
+    std::cout << "JACKAudioIO::process(" << nframes << "): have a purpose in life" << std::endl;
 #endif
 
 #ifdef DEBUG_AUDIO_JACK_IO    
@@ -325,9 +325,9 @@ AudioJACKIO::process(jack_nframes_t nframes)
 }
 
 int
-AudioJACKIO::xrun()
+JACKAudioIO::xrun()
 {
-    std::cerr << "AudioJACKIO: xrun!" << std::endl;
+    std::cerr << "JACKAudioIO: xrun!" << std::endl;
     if (m_target) m_target->audioProcessingOverload();
     if (m_source) m_source->audioProcessingOverload();
     return 0;

@@ -3,8 +3,8 @@
 
 #ifdef HAVE_PORTAUDIO
 
-#include "AudioPortAudioTarget.h"
-#include "AudioCallbackPlaySource.h"
+#include "PortAudioPlaybackTarget.h"
+#include "ApplicationPlaybackSource.h"
 
 #include "dsp/Resampler.h"
 #include "system/Allocators.h"
@@ -33,8 +33,8 @@ enableRT(PaStream *stream) {
 #endif
 }
 
-AudioPortAudioTarget::AudioPortAudioTarget(AudioCallbackPlaySource *source) :
-    AudioCallbackPlayTarget(source),
+PortAudioPlaybackTarget::PortAudioPlaybackTarget(ApplicationPlaybackSource *source) :
+    SystemPlaybackTarget(source),
     m_stream(0),
     m_resampler(0),
     m_bufferSize(0),
@@ -45,7 +45,7 @@ AudioPortAudioTarget::AudioPortAudioTarget(AudioCallbackPlaySource *source) :
 
     err = Pa_Initialize();
     if (err != paNoError) {
-	std::cerr << "ERROR: AudioPortAudioTarget: Failed to initialize PortAudio" << std::endl;
+	std::cerr << "ERROR: PortAudioPlaybackTarget: Failed to initialize PortAudio" << std::endl;
 	return;
     }
 
@@ -78,7 +78,7 @@ AudioPortAudioTarget::AudioPortAudioTarget(AudioCallbackPlaySource *source) :
     }
 
     if (err != paNoError) {
-	std::cerr << "ERROR: AudioPortAudioTarget: Failed to open PortAudio stream: " << Pa_GetErrorText(err) << std::endl;
+	std::cerr << "ERROR: PortAudioPlaybackTarget: Failed to open PortAudio stream: " << Pa_GetErrorText(err) << std::endl;
 	m_stream = 0;
 	Pa_Terminate();
 	return;
@@ -89,7 +89,7 @@ AudioPortAudioTarget::AudioPortAudioTarget(AudioCallbackPlaySource *source) :
     if (m_bufferSize == 0) {
 	m_bufferSize = m_latency;
 	if (m_bufferSize == 0) {
-//	    std::cerr << "AudioPortAudioTarget: stream is reporting zero latency, this can't be true" << std::endl;
+//	    std::cerr << "PortAudioPlaybackTarget: stream is reporting zero latency, this can't be true" << std::endl;
 	    m_bufferSize = 1024;
  	}
     }
@@ -99,7 +99,7 @@ AudioPortAudioTarget::AudioPortAudioTarget(AudioCallbackPlaySource *source) :
     err = Pa_StartStream(m_stream);
 
     if (err != paNoError) {
-	std::cerr << "ERROR: AudioPortAudioTarget: Failed to start PortAudio stream" << std::endl;
+	std::cerr << "ERROR: PortAudioPlaybackTarget: Failed to start PortAudio stream" << std::endl;
 	Pa_CloseStream(m_stream);
 	m_stream = 0;
 	Pa_Terminate();
@@ -107,57 +107,57 @@ AudioPortAudioTarget::AudioPortAudioTarget(AudioCallbackPlaySource *source) :
     }
 
     if (m_source) {
-//	std::cerr << "AudioPortAudioTarget: block size " << m_bufferSize << std::endl;
+//	std::cerr << "PortAudioPlaybackTarget: block size " << m_bufferSize << std::endl;
 	m_source->setTargetBlockSize(m_bufferSize);
 	m_source->setTargetSampleRate(m_sampleRate);
 	m_source->setTargetPlayLatency(m_latency);
     }
 }
 
-AudioPortAudioTarget::~AudioPortAudioTarget()
+PortAudioPlaybackTarget::~PortAudioPlaybackTarget()
 {
     if (m_stream) {
 	PaError err;
 	err = Pa_CloseStream(m_stream);
 	if (err != paNoError) {
-	    std::cerr << "ERROR: AudioPortAudioTarget: Failed to close PortAudio stream" << std::endl;
+	    std::cerr << "ERROR: PortAudioPlaybackTarget: Failed to close PortAudio stream" << std::endl;
 	}
 	Pa_Terminate();
     }
 }
 
 bool
-AudioPortAudioTarget::isTargetOK() const
+PortAudioPlaybackTarget::isTargetOK() const
 {
     return (m_stream != 0);
 }
 
 double
-AudioPortAudioTarget::getCurrentTime() const
+PortAudioPlaybackTarget::getCurrentTime() const
 {
     if (!m_stream) return 0.0;
     else return Pa_GetStreamTime(m_stream);
 }
 
 int
-AudioPortAudioTarget::processStatic(const void *input, void *output,
+PortAudioPlaybackTarget::processStatic(const void *input, void *output,
                                     unsigned long nframes,
                                     const PaStreamCallbackTimeInfo *timeInfo,
                                     PaStreamCallbackFlags flags, void *data)
 {
-    return ((AudioPortAudioTarget *)data)->process(input, output,
+    return ((PortAudioPlaybackTarget *)data)->process(input, output,
                                                    nframes, timeInfo,
                                                    flags);
 }
 
 int
-AudioPortAudioTarget::process(const void *, void *outputBuffer,
+PortAudioPlaybackTarget::process(const void *, void *outputBuffer,
                               unsigned long nframes,
                               const PaStreamCallbackTimeInfo *,
                               PaStreamCallbackFlags)
 {
 #ifdef DEBUG_AUDIO_PORT_AUDIO_TARGET    
-    std::cout << "AudioPortAudioTarget::process(" << nframes << ")" << std::endl;
+    std::cout << "PortAudioPlaybackTarget::process(" << nframes << ")" << std::endl;
 #endif
 
     if (!m_source) return 0;
@@ -165,7 +165,7 @@ AudioPortAudioTarget::process(const void *, void *outputBuffer,
     float *output = (float *)outputBuffer;
 
     if (nframes > m_bufferSize) {
-	std::cerr << "AudioPortAudioTarget::process: nframes = " << nframes
+	std::cerr << "PortAudioPlaybackTarget::process: nframes = " << nframes
    	 	  << " against buffer size " << m_bufferSize << std::endl;
     }
     assert(nframes <= m_bufferSize);

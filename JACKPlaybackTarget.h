@@ -9,19 +9,19 @@
 #include <jack/jack.h>
 #include <vector>
 
-#include "AudioCallbackPlayTarget.h"
+#include "SystemPlaybackTarget.h"
 
 #include <QMutex>
 
 namespace Turbot {
 
-class AudioCallbackPlaySource;
+class ApplicationPlaybackSource;
 
-class AudioJACKTarget : public AudioCallbackPlayTarget
+class JACKPlaybackTarget : public SystemPlaybackTarget
 {
 public:
-    AudioJACKTarget(AudioCallbackPlaySource *source);
-    virtual ~AudioJACKTarget();
+    JACKPlaybackTarget(ApplicationPlaybackSource *source);
+    virtual ~JACKPlaybackTarget();
 
     virtual bool isTargetOK() const;
 

@@ -3,9 +3,9 @@
 
 #ifdef HAVE_LIBPULSE
 
-#include "AudioPulseAudioIO.h"
-#include "AudioCallbackPlaySource.h"
-#include "AudioCallbackRecordTarget.h"
+#include "PulseAudioIO.h"
+#include "ApplicationPlaybackSource.h"
+#include "ApplicationRecordTarget.h"
 
 #include "system/VectorOps.h"
 
@@ -20,9 +20,9 @@ using std::endl;
 
 namespace Turbot {
 
-AudioPulseAudioIO::AudioPulseAudioIO(AudioCallbackRecordTarget *target,
-                                     AudioCallbackPlaySource *source) :
-    AudioCallbackIO(target, source),
+PulseAudioIO::PulseAudioIO(ApplicationRecordTarget *target,
+                                     ApplicationPlaybackSource *source) :
+    SystemAudioIO(target, source),
     m_mutex(QMutex::Recursive), //!!!???
     m_loop(0),
     m_api(0),
@@ -35,12 +35,12 @@ AudioPulseAudioIO::AudioPulseAudioIO(AudioCallbackRecordTarget *target,
     m_done(false)
 {
 #ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
-    cerr << "AudioPulseAudioIO: Initialising for PulseAudio" << endl;
+    cerr << "PulseAudioIO: Initialising for PulseAudio" << endl;
 #endif
 
     m_loop = pa_mainloop_new();
     if (!m_loop) {
-        cerr << "ERROR: AudioPulseAudioIO: Failed to create main loop" << endl;
+        cerr << "ERROR: PulseAudioIO: Failed to create main loop" << endl;
         return;
     }
 
@@ -59,7 +59,7 @@ AudioPulseAudioIO::AudioPulseAudioIO(AudioCallbackRecordTarget *target,
 
     m_context = pa_context_new(m_api, "turbot");
     if (!m_context) {
-        cerr << "ERROR: AudioPulseAudioIO: Failed to create context object" << endl;
+        cerr << "ERROR: PulseAudioIO: Failed to create context object" << endl;
         return;
     }
 
@@ -71,13 +71,13 @@ AudioPulseAudioIO::AudioPulseAudioIO(AudioCallbackRecordTarget *target,
     m_loopThread->start();
 
 #ifdef DEBUG_PULSE_AUDIO_IO
-    cerr << "AudioPulseAudioIO: initialised OK" << endl;
+    cerr << "PulseAudioIO: initialised OK" << endl;
 #endif
 }
 
-AudioPulseAudioIO::~AudioPulseAudioIO()
+PulseAudioIO::~PulseAudioIO()
 {
-    cerr << "AudioPulseAudioIO::~AudioPulseAudioIO()" << endl;
+    cerr << "PulseAudioIO::~PulseAudioIO()" << endl;
 
 //!!!    if (m_source) {
 //        m_source->setTarget(0, m_bufferSize);
@@ -97,23 +97,23 @@ AudioPulseAudioIO::~AudioPulseAudioIO()
         pa_mainloop_free(m_loop);
     }
 
-    cerr << "AudioPulseAudioIO::~AudioPulseAudioIO() done" << endl;
+    cerr << "PulseAudioIO::~PulseAudioIO() done" << endl;
 }
 
 bool
-AudioPulseAudioIO::isSourceOK() const
+PulseAudioIO::isSourceOK() const
 {
     return (m_context != 0);
 }
 
 bool
-AudioPulseAudioIO::isTargetOK() const
+PulseAudioIO::isTargetOK() const
 {
     return (m_context != 0);
 }
 
 double
-AudioPulseAudioIO::getCurrentTime() const
+PulseAudioIO::getCurrentTime() const
 {
     if (!m_out) return 0.0;
     
@@ -123,11 +123,11 @@ AudioPulseAudioIO::getCurrentTime() const
 }
 
 void
-AudioPulseAudioIO::streamWriteStatic(pa_stream *stream,
+PulseAudioIO::streamWriteStatic(pa_stream *stream,
                                          size_t length,
                                          void *data)
 {
-    AudioPulseAudioIO *target = (AudioPulseAudioIO *)data;
+    PulseAudioIO *target = (PulseAudioIO *)data;
     
     assert(stream == target->m_out);
 
@@ -135,10 +135,10 @@ AudioPulseAudioIO::streamWriteStatic(pa_stream *stream,
 }
 
 void
-AudioPulseAudioIO::streamWrite(size_t requested)
+PulseAudioIO::streamWrite(size_t requested)
 {
 #ifdef DEBUG_AUDIO_PULSE_AUDIO_IO    
-    cout << "AudioPulseAudioIO::streamWrite(" << requested << ")" << endl;
+    cout << "PulseAudioIO::streamWrite(" << requested << ")" << endl;
 #endif
     if (m_done) return;
 
@@ -164,11 +164,11 @@ AudioPulseAudioIO::streamWrite(size_t requested)
     size_t nframes = requested / (sourceChannels * sizeof(float)); //!!! this should be dividing by how many channels PA thinks it has!
 
     if (nframes > m_bufferSize) {
-        cerr << "WARNING: AudioPulseAudioIO::streamWrite: nframes " << nframes << " > m_bufferSize " << m_bufferSize << endl;
+        cerr << "WARNING: PulseAudioIO::streamWrite: nframes " << nframes << " > m_bufferSize " << m_bufferSize << endl;
     }
 
 #ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
-    cout << "AudioPulseAudioIO::streamWrite: nframes = " << nframes << endl;
+    cout << "PulseAudioIO::streamWrite: nframes = " << nframes << endl;
 #endif
 
     if (!tmpbuf || tmpbufch != sourceChannels || int(tmpbufsz) < nframes) {
@@ -244,11 +244,11 @@ AudioPulseAudioIO::streamWrite(size_t requested)
 }
 
 void
-AudioPulseAudioIO::streamReadStatic(pa_stream *stream,
+PulseAudioIO::streamReadStatic(pa_stream *stream,
                                     size_t length,
                                     void *data)
 {
-    AudioPulseAudioIO *target = (AudioPulseAudioIO *)data;
+    PulseAudioIO *target = (PulseAudioIO *)data;
     
     assert(stream == target->m_in);
 
@@ -256,10 +256,10 @@ AudioPulseAudioIO::streamReadStatic(pa_stream *stream,
 }
 
 void
-AudioPulseAudioIO::streamRead(size_t available)
+PulseAudioIO::streamRead(size_t available)
 {
 #ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
-    cerr << "AudioPulseAudioIO::streamRead(" << available << ")" << endl;
+    cerr << "PulseAudioIO::streamRead(" << available << ")" << endl;
 #endif
 
     QMutexLocker locker(&m_mutex);
@@ -287,11 +287,11 @@ AudioPulseAudioIO::streamRead(size_t available)
     size_t nframes = available / (targetChannels * sizeof(float)); //!!! this should be dividing by how many channels PA thinks it has!
 
     if (nframes > m_bufferSize) {
-        cerr << "WARNING: AudioPulseAudioIO::streamRead: nframes " << nframes << " > m_bufferSize " << m_bufferSize << endl;
+        cerr << "WARNING: PulseAudioIO::streamRead: nframes " << nframes << " > m_bufferSize " << m_bufferSize << endl;
     }
 
 #ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
-    cout << "AudioPulseAudioIO::streamRead: nframes = " << nframes << endl;
+    cout << "PulseAudioIO::streamRead: nframes = " << nframes << endl;
 #endif
 
     if (!tmpbuf || tmpbufch != targetChannels || int(tmpbufsz) < nframes) {
@@ -350,10 +350,10 @@ AudioPulseAudioIO::streamRead(size_t available)
 }
 
 void
-AudioPulseAudioIO::streamStateChangedStatic(pa_stream *stream,
+PulseAudioIO::streamStateChangedStatic(pa_stream *stream,
                                             void *data)
 {
-    AudioPulseAudioIO *target = (AudioPulseAudioIO *)data;
+    PulseAudioIO *target = (PulseAudioIO *)data;
     
     assert(stream == target->m_in || stream == target->m_out);
 
@@ -361,10 +361,10 @@ AudioPulseAudioIO::streamStateChangedStatic(pa_stream *stream,
 }
 
 void
-AudioPulseAudioIO::streamStateChanged(pa_stream *stream)
+PulseAudioIO::streamStateChanged(pa_stream *stream)
 {
 #ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
-    cerr << "AudioPulseAudioIO::streamStateChanged" << endl;
+    cerr << "PulseAudioIO::streamStateChanged" << endl;
 #endif
 
     assert(stream == m_in || stream == m_out);
@@ -380,15 +380,15 @@ AudioPulseAudioIO::streamStateChanged(pa_stream *stream)
         case PA_STREAM_READY:
         {
             if (stream == m_in) {
-                cerr << "AudioPulseAudioIO::streamStateChanged: Capture ready" << endl;
+                cerr << "PulseAudioIO::streamStateChanged: Capture ready" << endl;
             } else {
-                cerr << "AudioPulseAudioIO::streamStateChanged: Playback ready" << endl;
+                cerr << "PulseAudioIO::streamStateChanged: Playback ready" << endl;
             }                
 
             pa_usec_t latency = 0;
             int negative = 0;
             if (pa_stream_get_latency(m_out, &latency, &negative)) {
-                cerr << "AudioPulseAudioIO::contextStateChanged: Failed to query latency" << endl;
+                cerr << "PulseAudioIO::contextStateChanged: Failed to query latency" << endl;
             }
             cerr << "Latency = " << latency << " usec" << endl;
             int latframes = (latency / 1000000.f) * float(m_sampleRate);
@@ -396,12 +396,12 @@ AudioPulseAudioIO::streamStateChanged(pa_stream *stream)
 
             const pa_buffer_attr *attr;
             if (!(attr = pa_stream_get_buffer_attr(m_out))) {
-                cerr << "AudioPulseAudioIO::streamStateChanged: Cannot query stream buffer attributes" << endl;
+                cerr << "PulseAudioIO::streamStateChanged: Cannot query stream buffer attributes" << endl;
                 m_source->setTargetBlockSize(4096);
                 m_source->setTargetSampleRate(m_sampleRate);
                 m_source->setTargetPlayLatency(latframes);
             } else {
-                cerr << "AudioPulseAudioIO::streamStateChanged: stream max length = " << attr->maxlength << endl;
+                cerr << "PulseAudioIO::streamStateChanged: stream max length = " << attr->maxlength << endl;
                 int latency = attr->tlength;
                 cerr << "latency = " << latency << endl;
                 m_source->setTargetBlockSize(attr->maxlength);
@@ -416,7 +416,7 @@ AudioPulseAudioIO::streamStateChanged(pa_stream *stream)
 
         case PA_STREAM_FAILED:
         default:
-            cerr << "AudioPulseAudioIO::streamStateChanged: Error: "
+            cerr << "PulseAudioIO::streamStateChanged: Error: "
                       << pa_strerror(pa_context_errno(m_context)) << endl;
             //!!! do something...
             break;
@@ -424,10 +424,10 @@ AudioPulseAudioIO::streamStateChanged(pa_stream *stream)
 }
 
 void
-AudioPulseAudioIO::contextStateChangedStatic(pa_context *context,
+PulseAudioIO::contextStateChangedStatic(pa_context *context,
                                                  void *data)
 {
-    AudioPulseAudioIO *target = (AudioPulseAudioIO *)data;
+    PulseAudioIO *target = (PulseAudioIO *)data;
     
     assert(context == target->m_context);
 
@@ -435,10 +435,10 @@ AudioPulseAudioIO::contextStateChangedStatic(pa_context *context,
 }
 
 void
-AudioPulseAudioIO::contextStateChanged()
+PulseAudioIO::contextStateChanged()
 {
 #ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
-    cerr << "AudioPulseAudioIO::contextStateChanged" << endl;
+    cerr << "PulseAudioIO::contextStateChanged" << endl;
 #endif
     QMutexLocker locker(&m_mutex);
 
@@ -451,7 +451,7 @@ AudioPulseAudioIO::contextStateChanged()
 
         case PA_CONTEXT_READY:
         {
-            cerr << "AudioPulseAudioIO::contextStateChanged: Ready"
+            cerr << "PulseAudioIO::contextStateChanged: Ready"
                       << endl;
 
             m_in = pa_stream_new(m_context, "Turbot capture", &m_spec, 0);
@@ -466,7 +466,7 @@ AudioPulseAudioIO::contextStateChanged()
                 (m_in, 0, 0,
                  pa_stream_flags_t(PA_STREAM_INTERPOLATE_TIMING |
                                    PA_STREAM_AUTO_TIMING_UPDATE))) { //??? return value
-                cerr << "AudioPulseAudioIO: Failed to connect record stream" << endl;
+                cerr << "PulseAudioIO: Failed to connect record stream" << endl;
             }
 
             m_out = pa_stream_new(m_context, "Turbot playback", &m_spec, 0);
@@ -482,20 +482,20 @@ AudioPulseAudioIO::contextStateChanged()
                  pa_stream_flags_t(PA_STREAM_INTERPOLATE_TIMING |
                                    PA_STREAM_AUTO_TIMING_UPDATE),
                  0, 0)) { //??? return value
-                cerr << "AudioPulseAudioIO: Failed to connect playback stream" << endl;
+                cerr << "PulseAudioIO: Failed to connect playback stream" << endl;
             }
 
             break;
         }
 
         case PA_CONTEXT_TERMINATED:
-            cerr << "AudioPulseAudioIO::contextStateChanged: Terminated" << endl;
+            cerr << "PulseAudioIO::contextStateChanged: Terminated" << endl;
             //!!! do something...
             break;
 
         case PA_CONTEXT_FAILED:
         default:
-            cerr << "AudioPulseAudioIO::contextStateChanged: Error: "
+            cerr << "PulseAudioIO::contextStateChanged: Error: "
                       << pa_strerror(pa_context_errno(m_context)) << endl;
             //!!! do something...
             break;
@@ -503,15 +503,15 @@ AudioPulseAudioIO::contextStateChanged()
 }
 
 void
-AudioPulseAudioIO::streamOverflowStatic(pa_stream *, void *)
+PulseAudioIO::streamOverflowStatic(pa_stream *, void *)
 {
-    cerr << "AudioPulseAudioIO::streamOverflowStatic: Overflow!" << endl;
+    cerr << "PulseAudioIO::streamOverflowStatic: Overflow!" << endl;
 }
 
 void
-AudioPulseAudioIO::streamUnderflowStatic(pa_stream *, void *)
+PulseAudioIO::streamUnderflowStatic(pa_stream *, void *)
 {
-    cerr << "AudioPulseAudioIO::streamUnderflowStatic: Underflow!" << endl;
+    cerr << "PulseAudioIO::streamUnderflowStatic: Underflow!" << endl;
 }
 
 

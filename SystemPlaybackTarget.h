@@ -10,15 +10,15 @@
 
 namespace Turbot {
 
-class AudioCallbackPlaySource;
+class ApplicationPlaybackSource;
 
-class AudioCallbackPlayTarget : public QObject
+class SystemPlaybackTarget : public QObject
 {
     Q_OBJECT
 
 public:
-    AudioCallbackPlayTarget(AudioCallbackPlaySource *source);
-    virtual ~AudioCallbackPlayTarget();
+    SystemPlaybackTarget(ApplicationPlaybackSource *source);
+    virtual ~SystemPlaybackTarget();
 
     virtual bool isTargetOK() const = 0;
 
@@ -35,7 +35,7 @@ public slots:
     virtual void setOutputGain(float gain);
 
 protected:
-    AudioCallbackPlaySource *m_source;
+    ApplicationPlaybackSource *m_source;
     float m_outputGain;
 };
 

@@ -10,10 +10,10 @@
 
 namespace Turbot {
 
-class AudioCallbackRecordTarget
+class ApplicationRecordTarget
 {
 public:
-    virtual ~AudioCallbackRecordTarget() { }
+    virtual ~ApplicationRecordTarget() { }
 
     virtual size_t getPreferredSampleRate() const { return 0; }
     virtual size_t getChannelCount() const = 0;

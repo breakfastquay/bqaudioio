@@ -1,31 +1,26 @@
 /* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
 /* Copyright Chris Cannam - All Rights Reserved */
 
-#ifndef _AUDIO_PORT_AUDIO_IO_H_
-#define _AUDIO_PORT_AUDIO_IO_H_
+#ifndef _AUDIO_PORT_AUDIO_SOURCE_H_
+#define _AUDIO_PORT_AUDIO_SOURCE_H_
 
 #ifdef HAVE_PORTAUDIO
 
 #include <portaudio.h>
 
-#include "AudioCallbackIO.h"
+#include "SystemRecordSource.h"
 
 namespace Turbot {
 
-class AudioCallbackRecordTarget;
-class AudioCallbackPlaySource;
+class ApplicationRecordTarget;
 
-class AudioPortAudioIO : public AudioCallbackIO
+class PortAudioRecordSource : public SystemRecordSource
 {
 public:
-    AudioPortAudioIO(AudioCallbackRecordTarget *recordTarget,
-                     AudioCallbackPlaySource *playSource);
-    virtual ~AudioPortAudioIO();
+    PortAudioRecordSource(ApplicationRecordTarget *target);
+    virtual ~PortAudioRecordSource();
 
     virtual bool isSourceOK() const;
-    virtual bool isTargetOK() const;
-
-    virtual double getCurrentTime() const;
 
 protected:
     int process(const void *input, void *output, unsigned long frames,
@@ -40,9 +35,7 @@ protected:
 
     int m_bufferSize;
     int m_sampleRate;
-    int m_inputLatency;
-    int m_outputLatency;
-    bool m_prioritySet;
+    int m_latency;
 };
 
 }

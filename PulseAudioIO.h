@@ -8,7 +8,7 @@
 
 #include <pulse/pulseaudio.h>
 
-#include "AudioCallbackIO.h"
+#include "SystemAudioIO.h"
 
 #include "system/Thread.h"
 
@@ -16,15 +16,15 @@
 
 namespace Turbot {
 
-class AudioCallbackRecordTarget;
-class AudioCallbackPlaySource;
+class ApplicationRecordTarget;
+class ApplicationPlaybackSource;
 
-class AudioPulseAudioIO : public AudioCallbackIO
+class PulseAudioIO : public SystemAudioIO
 {
 public:
-    AudioPulseAudioIO(AudioCallbackRecordTarget *recordTarget,
-		      AudioCallbackPlaySource *playSource);
-    virtual ~AudioPulseAudioIO();
+    PulseAudioIO(ApplicationRecordTarget *recordTarget,
+		      ApplicationPlaybackSource *playSource);
+    virtual ~PulseAudioIO();
 
     virtual bool isSourceOK() const;
     virtual bool isTargetOK() const;

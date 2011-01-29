@@ -3,9 +3,9 @@
 
 #ifdef HAVE_PORTAUDIO
 
-#include "AudioPortAudioIO.h"
-#include "AudioCallbackPlaySource.h"
-#include "AudioCallbackRecordTarget.h"
+#include "PortAudioIO.h"
+#include "ApplicationPlaybackSource.h"
+#include "ApplicationRecordTarget.h"
 
 #include "system/VectorOps.h"
 
@@ -48,9 +48,9 @@ enableRT() { // on current thread
     sched_param param;
     param.sched_priority = 20;
     if (pthread_setschedparam(pthread_self(), SCHED_RR, &param)) {
-        std::cerr << "AudioPortAudioIO: NOTE: couldn't set RT scheduling class" << std::endl;
+        std::cerr << "PortAudioIO: NOTE: couldn't set RT scheduling class" << std::endl;
     } else {
-        std::cerr << "AudioPortAudioIO: NOTE: successfully set RT scheduling class" << std::endl;
+        std::cerr << "PortAudioIO: NOTE: successfully set RT scheduling class" << std::endl;
     }
     return true;
 #endif
@@ -58,9 +58,9 @@ enableRT() { // on current thread
     return false;
 }
 
-AudioPortAudioIO::AudioPortAudioIO(AudioCallbackRecordTarget *target,
-				   AudioCallbackPlaySource *source) :
-    AudioCallbackIO(target, source),
+PortAudioIO::PortAudioIO(ApplicationRecordTarget *target,
+				   ApplicationPlaybackSource *source) :
+    SystemAudioIO(target, source),
     m_stream(0),
     m_bufferSize(0),
     m_sampleRate(0),
@@ -72,7 +72,7 @@ AudioPortAudioIO::AudioPortAudioIO(AudioCallbackRecordTarget *target,
 
     err = Pa_Initialize();
     if (err != paNoError) {
-	std::cerr << "ERROR: AudioPortAudioIO: Failed to initialize PortAudio" << std::endl;
+	std::cerr << "ERROR: PortAudioIO: Failed to initialize PortAudio" << std::endl;
 	return;
     }
 
@@ -109,7 +109,7 @@ AudioPortAudioIO::AudioPortAudioIO(AudioCallbackRecordTarget *target,
     }
 
     if (err != paNoError) {
-	std::cerr << "ERROR: AudioPortAudioIO: Failed to open PortAudio stream: " << Pa_GetErrorText(err) << std::endl;
+	std::cerr << "ERROR: PortAudioIO: Failed to open PortAudio stream: " << Pa_GetErrorText(err) << std::endl;
 	m_stream = 0;
 	Pa_Terminate();
 	return;
@@ -127,14 +127,14 @@ AudioPortAudioIO::AudioPortAudioIO(AudioCallbackRecordTarget *target,
     err = Pa_StartStream(m_stream);
 
     if (err != paNoError) {
-	std::cerr << "ERROR: AudioPortAudioIO: Failed to start PortAudio stream" << std::endl;
+	std::cerr << "ERROR: PortAudioIO: Failed to start PortAudio stream" << std::endl;
 	Pa_CloseStream(m_stream);
 	m_stream = 0;
 	Pa_Terminate();
 	return;
     }
 
-    std::cerr << "AudioPortAudioIO: block size " << m_bufferSize << std::endl;
+    std::cerr << "PortAudioIO: block size " << m_bufferSize << std::endl;
 
     if (m_source) {
 	m_source->setTargetBlockSize(m_bufferSize);
@@ -149,56 +149,56 @@ AudioPortAudioIO::AudioPortAudioIO(AudioCallbackRecordTarget *target,
     }
 }
 
-AudioPortAudioIO::~AudioPortAudioIO()
+PortAudioIO::~PortAudioIO()
 {
     if (m_stream) {
 	PaError err;
 	err = Pa_CloseStream(m_stream);
 	if (err != paNoError) {
-	    std::cerr << "ERROR: AudioPortAudioIO: Failed to close PortAudio stream" << std::endl;
+	    std::cerr << "ERROR: PortAudioIO: Failed to close PortAudio stream" << std::endl;
 	}
 	Pa_Terminate();
     }
 }
 
 bool
-AudioPortAudioIO::isSourceOK() const
+PortAudioIO::isSourceOK() const
 {
     return (m_stream != 0);
 }
 
 bool
-AudioPortAudioIO::isTargetOK() const
+PortAudioIO::isTargetOK() const
 {
     return (m_stream != 0);
 }
 
 double
-AudioPortAudioIO::getCurrentTime() const
+PortAudioIO::getCurrentTime() const
 {
     if (!m_stream) return 0.0;
     else return Pa_GetStreamTime(m_stream);
 }
 
 int
-AudioPortAudioIO::processStatic(const void *input, void *output,
+PortAudioIO::processStatic(const void *input, void *output,
                                 unsigned long nframes,
                                 const PaStreamCallbackTimeInfo *timeInfo,
                                 PaStreamCallbackFlags flags, void *data)
 {
-    return ((AudioPortAudioIO *)data)->process(input, output,
+    return ((PortAudioIO *)data)->process(input, output,
                                                nframes, timeInfo,
                                                flags);
 }
 
 int
-AudioPortAudioIO::process(const void *inputBuffer, void *outputBuffer,
+PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
                           unsigned long nframes,
                           const PaStreamCallbackTimeInfo *,
                           PaStreamCallbackFlags)
 {
 #ifdef DEBUG_AUDIO_PORT_AUDIO_IO    
-    std::cout << "AudioPortAudioIO::process(" << nframes << ")" << std::endl;
+    std::cout << "PortAudioIO::process(" << nframes << ")" << std::endl;
 #endif
 
     if (!m_prioritySet) {
