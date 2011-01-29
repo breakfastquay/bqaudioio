@@ -12,13 +12,16 @@
 namespace Turbot {
 
 class SystemAudioIO : public SystemRecordSource,
-			public SystemPlaybackTarget
+                      public SystemPlaybackTarget
 {
 public:
     SystemAudioIO(ApplicationRecordTarget *target,
-                    ApplicationPlaybackSource *source) :
+                  ApplicationPlaybackSource *source) :
         SystemRecordSource(target),
         SystemPlaybackTarget(source) { }
+
+    bool isOK() const { return isSourceOK() && isTargetOK(); }
+    bool isReady() const { return isSourceReady() && isTargetReady(); }
 };
 
 }

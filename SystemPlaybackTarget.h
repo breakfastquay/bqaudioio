@@ -21,6 +21,7 @@ public:
     virtual ~SystemPlaybackTarget();
 
     virtual bool isTargetOK() const = 0;
+    virtual bool isTargetReady() const { return isTargetOK(); }
 
     virtual double getCurrentTime() const = 0;
 

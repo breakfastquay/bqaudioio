@@ -32,7 +32,9 @@ PulseAudioIO::PulseAudioIO(ApplicationRecordTarget *target,
     m_loopThread(0),
     m_bufferSize(0),
     m_sampleRate(0),
-    m_done(false)
+    m_done(false),
+    m_captureReady(false),
+    m_playbackReady(false)
 {
 #ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
     cerr << "PulseAudioIO: Initialising for PulseAudio" << endl;
@@ -110,6 +112,18 @@ bool
 PulseAudioIO::isTargetOK() const
 {
     return (m_context != 0);
+}
+
+bool
+PulseAudioIO::isSourceReady() const
+{
+    return m_captureReady;
+}
+
+bool
+PulseAudioIO::isTargetReady() const
+{
+    return m_playbackReady;
 }
 
 double
@@ -381,8 +395,10 @@ PulseAudioIO::streamStateChanged(pa_stream *stream)
         {
             if (stream == m_in) {
                 cerr << "PulseAudioIO::streamStateChanged: Capture ready" << endl;
+                m_captureReady = true;
             } else {
                 cerr << "PulseAudioIO::streamStateChanged: Playback ready" << endl;
+                m_playbackReady = true;
             }                
 
             pa_usec_t latency = 0;
@@ -409,6 +425,7 @@ PulseAudioIO::streamStateChanged(pa_stream *stream)
                 m_source->setSystemPlaybackLatency(latframes);
             }
 
+            cerr << "PulseAudioIO: setting system record sample rate to " << m_sampleRate << endl;
             m_target->setSystemRecordSampleRate(m_sampleRate);
 
             break;

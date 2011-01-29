@@ -27,7 +27,9 @@ public:
     virtual ~PulseAudioIO();
 
     virtual bool isSourceOK() const;
+    virtual bool isSourceReady() const;
     virtual bool isTargetOK() const;
+    virtual bool isTargetReady() const;
 
     virtual double getCurrentTime() const;
 
@@ -71,6 +73,9 @@ protected:
     int m_bufferSize;
     int m_sampleRate;
     bool m_done;
+
+    bool m_captureReady;
+    bool m_playbackReady;
 };
 
 }

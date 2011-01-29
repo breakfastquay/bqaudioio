@@ -79,7 +79,7 @@ AudioFactory::createCallbackIO(ApplicationRecordTarget *target,
 
 #ifdef HAVE_JACK
     io = new JACKAudioIO(target, source);
-    if (io->isSourceOK() && io->isTargetOK()) return io;
+    if (io->isOK()) return io;
     else {
 	std::cerr << "WARNING: AudioFactory::createCallbackIO: Failed to open JACK I/O" << std::endl;
 	delete io;
@@ -88,7 +88,7 @@ AudioFactory::createCallbackIO(ApplicationRecordTarget *target,
 
 #ifdef HAVE_LIBPULSE
     io = new PulseAudioIO(target, source);
-    if (io->isSourceOK() && io->isTargetOK()) return io;
+    if (io->isOK()) return io;
     else {
 	std::cerr << "WARNING: AudioFactory::createCallbackIO: Failed to open PulseAudio I/O" << std::endl;
 	delete io;
@@ -97,7 +97,7 @@ AudioFactory::createCallbackIO(ApplicationRecordTarget *target,
 
 #ifdef HAVE_PORTAUDIO
     io = new PortAudioIO(target, source);
-    if (io->isSourceOK() && io->isTargetOK()) return io;
+    if (io->isOK()) return io;
     else {
 	std::cerr << "WARNING: AudioFactory::createCallbackIO: Failed to open PortAudio I/O" << std::endl;
 	delete io;

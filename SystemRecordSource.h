@@ -17,6 +17,7 @@ public:
     virtual ~SystemRecordSource();
 
     virtual bool isSourceOK() const = 0;
+    virtual bool isSourceReady() const { return isSourceOK(); }
 
 protected:
     ApplicationRecordTarget *m_target;
