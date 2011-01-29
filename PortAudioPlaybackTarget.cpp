@@ -51,8 +51,8 @@ PortAudioPlaybackTarget::PortAudioPlaybackTarget(ApplicationPlaybackSource *sour
 
     m_bufferSize = 0;
     m_sampleRate = 44100;
-    if (m_source && (m_source->getSourceSampleRate() != 0)) {
-	m_sampleRate = m_source->getSourceSampleRate();
+    if (m_source && (m_source->getApplicationSampleRate() != 0)) {
+	m_sampleRate = m_source->getApplicationSampleRate();
     }
 
     std::cerr << "Sample rate: " << m_sampleRate << std::endl;
@@ -108,9 +108,9 @@ PortAudioPlaybackTarget::PortAudioPlaybackTarget(ApplicationPlaybackSource *sour
 
     if (m_source) {
 //	std::cerr << "PortAudioPlaybackTarget: block size " << m_bufferSize << std::endl;
-	m_source->setTargetBlockSize(m_bufferSize);
-	m_source->setTargetSampleRate(m_sampleRate);
-	m_source->setTargetPlayLatency(m_latency);
+	m_source->setSystemPlaybackBlockSize(m_bufferSize);
+	m_source->setSystemPlaybackSampleRate(m_sampleRate);
+	m_source->setSystemPlaybackLatency(m_latency);
     }
 }
 
@@ -171,14 +171,14 @@ PortAudioPlaybackTarget::process(const void *, void *outputBuffer,
     assert(nframes <= m_bufferSize);
 
     static float **tmpbuf = 0;
-    static size_t tmpbufch = 0;
-    static size_t tmpbufsz = 0;
+    static int tmpbufch = 0;
+    static int tmpbufsz = 0;
 
     static float **resampbuf = 0;
-    static size_t resampbufch = 0;
-    static size_t resampbufsz = 0;
+    static int resampbufch = 0;
+    static int resampbufsz = 0;
 
-    size_t sourceChannels = m_source->getSourceChannelCount();
+    int sourceChannels = m_source->getApplicationChannelCount();
     if (sourceChannels == 0) {
         v_zero(output, nframes * 2);
         return 0;
@@ -191,14 +191,14 @@ PortAudioPlaybackTarget::process(const void *, void *outputBuffer,
         tmpbuf = allocate_channels<float>(tmpbufch, tmpbufsz);
     }
 
-    if (m_source->getSourceSampleRate() == 0 ||
-        m_source->getSourceSampleRate() == m_sampleRate) {
+    if (m_source->getApplicationSampleRate() == 0 ||
+        m_source->getApplicationSampleRate() == m_sampleRate) {
 	
         m_source->getSourceSamples(nframes, tmpbuf);
 
     } else {
 
-//        std::cerr << "resampling " << m_source->getSourceSampleRate() 
+//        std::cerr << "resampling " << m_source->getApplicationSampleRate() 
 //                  << " -> " << m_sampleRate << std::endl;
         
         if (m_resampler && m_resampler->getChannelCount() != sourceChannels) {
@@ -211,7 +211,7 @@ PortAudioPlaybackTarget::process(const void *, void *outputBuffer,
         }
 
         float ratio = float(m_sampleRate) /
-            float(m_source->getSourceSampleRate());
+            float(m_source->getApplicationSampleRate());
 
         if (!resampbuf || resampbufsz != int(tmpbufsz / ratio) + 1) {
             deallocate_channels(resampbuf, resampbufch);
@@ -227,14 +227,14 @@ PortAudioPlaybackTarget::process(const void *, void *outputBuffer,
 
     float peakLeft = 0.0, peakRight = 0.0;
 
-    for (size_t ch = 0; ch < 2; ++ch) {
+    for (int ch = 0; ch < 2; ++ch) {
 	
 	float peak = 0.0;
 
 	if (ch < sourceChannels) {
 
 	    // PortAudio samples are interleaved
-	    for (size_t i = 0; i < nframes; ++i) {
+	    for (int i = 0; i < nframes; ++i) {
 		output[i * 2 + ch] = tmpbuf[ch][i] * m_outputGain;
 		float sample = fabsf(output[i * 2 + ch]);
 		if (sample > peak) peak = sample;
@@ -242,14 +242,14 @@ PortAudioPlaybackTarget::process(const void *, void *outputBuffer,
 
 	} else if (ch == 1 && sourceChannels == 1) {
 
-	    for (size_t i = 0; i < nframes; ++i) {
+	    for (int i = 0; i < nframes; ++i) {
 		output[i * 2 + ch] = tmpbuf[0][i] * m_outputGain;
 		float sample = fabsf(output[i * 2 + ch]);
 		if (sample > peak) peak = sample;
 	    }
 
 	} else {
-	    for (size_t i = 0; i < nframes; ++i) {
+	    for (int i = 0; i < nframes; ++i) {
 		output[i * 2 + ch] = 0;
 	    }
 	}

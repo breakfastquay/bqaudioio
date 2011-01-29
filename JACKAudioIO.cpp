@@ -96,24 +96,21 @@ JACKAudioIO::xrunStatic(void *arg)
 }
 
 void
-JACKAudioIO::setup(size_t channels)
+JACKAudioIO::setup(int channels)
 {
     m_mutex.lock();
 
     if (m_source) {
-        m_source->setTargetBlockSize(m_bufferSize);
-        m_source->setTargetSampleRate(m_sampleRate);
+        m_source->setSystemPlaybackBlockSize(m_bufferSize);
+        m_source->setSystemPlaybackSampleRate(m_sampleRate);
     }
     if (m_target) {
-        m_target->setSourceBlockSize(m_bufferSize);
-        m_target->setSourceSampleRate(m_sampleRate);
-        if (channels < m_target->getChannelCount()) {
-            channels = m_target->getChannelCount();
+        m_target->setSystemRecordBlockSize(m_bufferSize);
+        m_target->setSystemRecordSampleRate(m_sampleRate);
+        if (channels < m_target->getApplicationChannelCount()) {
+            channels = m_target->getApplicationChannelCount();
         }
     }
-
-    // Because we offer pan, we always want at least 2 channels
-    if (channels < 2) channels = 2;
 
     if (channels == m_outputs.size() || !m_client) {
 	m_mutex.unlock();
@@ -127,10 +124,10 @@ JACKAudioIO::setup(size_t channels)
 	jack_get_ports(m_client, NULL, NULL,
 		       JackPortIsPhysical | JackPortIsOutput);
 
-    size_t playPortCount = 0;
+    int playPortCount = 0;
     while (playPorts && playPorts[playPortCount]) ++playPortCount;
 
-    size_t capPortCount = 0;
+    int capPortCount = 0;
     while (capPorts && capPorts[capPortCount]) ++capPortCount;
 
 #ifdef DEBUG_AUDIO_JACK_IO    
@@ -158,7 +155,7 @@ JACKAudioIO::setup(size_t channels)
                     << m_outputs.size() << std::endl;
                 return;
             } else {
-                m_source->setTargetPlayLatency(jack_port_get_latency(port));
+                m_source->setSystemPlaybackLatency(jack_port_get_latency(port));
             }
 
             if (m_outputs.size() < playPortCount) {
@@ -192,7 +189,7 @@ JACKAudioIO::setup(size_t channels)
                     << m_inputs.size() << std::endl;
                 return;
             } else {
-                m_target->setSourceRecordLatency(jack_port_get_latency(port));
+                m_target->setSystemRecordLatency(jack_port_get_latency(port));
             }
 
             if (m_inputs.size() < capPortCount) {
@@ -253,7 +250,7 @@ JACKAudioIO::process(jack_nframes_t nframes)
 
     if (m_source) {
 
-        for (size_t ch = 0; ch < m_outputs.size(); ++ch) {
+        for (int ch = 0; ch < m_outputs.size(); ++ch) {
             outbufs[ch] = (float *)jack_port_get_buffer(m_outputs[ch], nframes);
         }
         
@@ -263,11 +260,11 @@ JACKAudioIO::process(jack_nframes_t nframes)
 
         //!!! vectorisation
 
-        for (size_t ch = 0; ch < m_outputs.size(); ++ch) {
+        for (int ch = 0; ch < m_outputs.size(); ++ch) {
 
             float peak = 0.0;
 
-            for (size_t i = 0; i < nframes; ++i) {
+            for (int i = 0; i < nframes; ++i) {
                 outbufs[ch][i] *= m_outputGain;
                 float sample = fabsf(outbufs[ch][i]);
                 if (sample > peak) peak = sample;
@@ -280,8 +277,8 @@ JACKAudioIO::process(jack_nframes_t nframes)
         m_source->setOutputLevels(peakLeft, peakRight);
 
     } else {
-	for (size_t ch = 0; ch < m_outputs.size(); ++ch) {
-	    for (size_t i = 0; i < nframes; ++i) {
+	for (int ch = 0; ch < m_outputs.size(); ++ch) {
+	    for (int i = 0; i < nframes; ++i) {
 		outbufs[ch][i] = 0.0;
 	    }
 	}
@@ -289,17 +286,17 @@ JACKAudioIO::process(jack_nframes_t nframes)
 
     if (m_target) {
 
-        for (size_t ch = 0; ch < m_inputs.size(); ++ch) {
+        for (int ch = 0; ch < m_inputs.size(); ++ch) {
             inbufs[ch] = (float *)jack_port_get_buffer(m_inputs[ch], nframes);
         }
 
         peakLeft = 0.0; peakRight = 0.0;
 
-        for (size_t ch = 0; ch < m_inputs.size(); ++ch) {
+        for (int ch = 0; ch < m_inputs.size(); ++ch) {
 
             float peak = 0.0;
 
-            for (size_t i = 0; i < nframes; ++i) {
+            for (int i = 0; i < nframes; ++i) {
                 float sample = fabsf(inbufs[ch][i]);
                 if (sample > peak) peak = sample;
             }
@@ -312,8 +309,8 @@ JACKAudioIO::process(jack_nframes_t nframes)
         m_target->putSamples(nframes, inbufs);
 
         /*!!!
-        for (size_t ch = 0; ch < m_inputs.size(); ++ch) {
-            for (size_t i = 0; i < nframes; ++i) {
+        for (int ch = 0; ch < m_inputs.size(); ++ch) {
+            for (int i = 0; i < nframes; ++i) {
                 outbufs[ch][i] = inbufs[ch][i];
             }
         }

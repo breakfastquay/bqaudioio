@@ -48,10 +48,10 @@ JACKRecordSource::JACKRecordSource(ApplicationRecordTarget *target) :
 		  << std::endl;
     }
 
-    m_target->setSourceBlockSize(m_bufferSize);
-    m_target->setSourceSampleRate(m_sampleRate);
+    m_target->setSystemRecordBlockSize(m_bufferSize);
+    m_target->setSystemRecordSampleRate(m_sampleRate);
 
-    size_t channels = m_target->getChannelCount();
+    int channels = m_target->getApplicationChannelCount();
 
     while (m_inputs.size() < channels) {
 	
@@ -71,7 +71,7 @@ JACKRecordSource::JACKRecordSource(ApplicationRecordTarget *target) :
 		<< "ERROR: JACKRecordSource: Failed to create JACK input port "
 		<< m_inputs.size() << std::endl;
 	} else {
-	    m_target->setSourceRecordLatency(jack_port_get_latency(port));
+	    m_target->setSystemRecordLatency(jack_port_get_latency(port));
 	}
 
 	m_inputs.push_back(port);
@@ -107,7 +107,7 @@ JACKRecordSource::xrunStatic(void *arg)
 int
 JACKRecordSource::process(jack_nframes_t nframes)
 {
-    if (m_inputs.size() < m_target->getChannelCount()) {
+    if (m_inputs.size() < m_target->getApplicationChannelCount()) {
 	return 0;
     }
 
@@ -123,7 +123,7 @@ JACKRecordSource::process(jack_nframes_t nframes)
 
     float **buffers = (float **)alloca(m_inputs.size() * sizeof(float *));
 
-    for (size_t ch = 0; ch < m_inputs.size(); ++ch) {
+    for (int ch = 0; ch < m_inputs.size(); ++ch) {
 	buffers[ch] = (float *)jack_port_get_buffer(m_inputs[ch], nframes);
     }
 
@@ -133,11 +133,11 @@ JACKRecordSource::process(jack_nframes_t nframes)
 
     float peakLeft = 0.0, peakRight = 0.0;
 
-    for (size_t ch = 0; ch < m_inputs.size(); ++ch) {
+    for (int ch = 0; ch < m_inputs.size(); ++ch) {
 
 	float peak = 0.0;
 
-	for (size_t i = 0; i < nframes; ++i) {
+	for (int i = 0; i < nframes; ++i) {
 	    float sample = fabsf(buffers[ch][i]);
 	    if (sample > peak) peak = sample;
 	}

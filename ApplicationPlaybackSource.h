@@ -15,16 +15,16 @@ class ApplicationPlaybackSource
 public:
     virtual ~ApplicationPlaybackSource() { }
 
-    virtual size_t getSourceSampleRate() = 0; // 0 for unknown or don't care
-    virtual size_t getSourceChannelCount() = 0;
+    virtual int getApplicationSampleRate() = 0; // 0 for unknown or don't care
+    virtual int getApplicationChannelCount() = 0;
 
     virtual long getCurrentPlayingFrame() const = 0;
     
-    virtual void setTargetBlockSize(size_t) = 0;
-    virtual void setTargetSampleRate(size_t) = 0;
-    virtual void setTargetPlayLatency(size_t) = 0;
+    virtual void setSystemPlaybackBlockSize(int) = 0;
+    virtual void setSystemPlaybackSampleRate(int) = 0;
+    virtual void setSystemPlaybackLatency(int) = 0;
 
-    virtual void getSourceSamples(size_t nframes, float **samples) = 0;
+    virtual void getSourceSamples(int nframes, float **samples) = 0;
     
     virtual void setOutputLevels(float peakLeft, float peakRight) = 0;
 

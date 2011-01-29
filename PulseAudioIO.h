@@ -32,8 +32,8 @@ public:
     virtual double getCurrentTime() const;
 
 protected:
-    void streamWrite(size_t);
-    void streamRead(size_t);
+    void streamWrite(int);
+    void streamRead(int);
     void streamStateChanged(pa_stream *);
     void contextStateChanged();
 

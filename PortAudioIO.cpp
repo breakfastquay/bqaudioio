@@ -79,10 +79,10 @@ PortAudioIO::PortAudioIO(ApplicationRecordTarget *target,
     m_bufferSize = 0;
     m_sampleRate = 44100;
 
-    if (m_source && (m_source->getSourceSampleRate() != 0)) {
-	m_sampleRate = m_source->getSourceSampleRate();
-    } else if (m_target && (m_target->getPreferredSampleRate() != 0)) {
-        m_sampleRate = m_target->getPreferredSampleRate();
+    if (m_source && (m_source->getApplicationSampleRate() != 0)) {
+	m_sampleRate = m_source->getApplicationSampleRate();
+    } else if (m_target && (m_target->getApplicationSampleRate() != 0)) {
+        m_sampleRate = m_target->getApplicationSampleRate();
     }
 
     PaStreamParameters ip, op;
@@ -137,15 +137,15 @@ PortAudioIO::PortAudioIO(ApplicationRecordTarget *target,
     std::cerr << "PortAudioIO: block size " << m_bufferSize << std::endl;
 
     if (m_source) {
-	m_source->setTargetBlockSize(m_bufferSize);
-	m_source->setTargetSampleRate(m_sampleRate);
-	m_source->setTargetPlayLatency(m_outputLatency);
+	m_source->setSystemPlaybackBlockSize(m_bufferSize);
+	m_source->setSystemPlaybackSampleRate(m_sampleRate);
+	m_source->setSystemPlaybackLatency(m_outputLatency);
     }
 
     if (m_target) {
-	m_target->setSourceBlockSize(m_bufferSize);
-	m_target->setSourceSampleRate(m_sampleRate);
-	m_target->setSourceRecordLatency(m_inputLatency);
+	m_target->setSystemRecordBlockSize(m_bufferSize);
+	m_target->setSystemRecordSampleRate(m_sampleRate);
+	m_target->setSystemRecordLatency(m_inputLatency);
     }
 }
 
@@ -214,21 +214,21 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
     assert(nframes <= m_bufferSize);
 
     static float **tmpbuf = 0;
-    static size_t tmpbufch = 0;
-    static size_t tmpbufsz = 0;
+    static int tmpbufch = 0;
+    static int tmpbufsz = 0;
 
-    size_t sourceChannels = m_source ? m_source->getSourceChannelCount() : 0;
+    int sourceChannels = m_source ? m_source->getApplicationChannelCount() : 0;
     if (sourceChannels == 0) {
         v_zero(output, nframes * 2);
         return 0;
     }
 
-    size_t targetChannels = m_target ? m_target->getChannelCount() : 0;
+    int targetChannels = m_target ? m_target->getApplicationChannelCount() : 0;
 
     if (!tmpbuf || tmpbufch != sourceChannels || tmpbufsz < m_bufferSize) {
 
 	if (tmpbuf) {
-	    for (size_t i = 0; i < tmpbufch; ++i) {
+	    for (int i = 0; i < tmpbufch; ++i) {
 		delete[] tmpbuf[i];
 	    }
 	    delete[] tmpbuf;
@@ -238,7 +238,7 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
 	tmpbufsz = m_bufferSize;
 	tmpbuf = new float *[tmpbufch];
 
-	for (size_t i = 0; i < tmpbufch; ++i) {
+	for (int i = 0; i < tmpbufch; ++i) {
 	    tmpbuf[i] = new float[tmpbufsz];
 	}
     }
@@ -253,14 +253,14 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
     
         peakLeft = 0.0, peakRight = 0.0;
 
-        for (size_t ch = 0; ch < 2; ++ch) {
+        for (int ch = 0; ch < 2; ++ch) {
 	
             float peak = 0.0;
 
             if (ch < sourceChannels) {
 
                 // PortAudio samples are interleaved
-                for (size_t i = 0; i < nframes; ++i) {
+                for (int i = 0; i < nframes; ++i) {
                     output[i * 2 + ch] = tmpbuf[ch][i] * m_outputGain;
                     float sample = fabsf(output[i * 2 + ch]);
                     if (sample > peak) peak = sample;
@@ -268,14 +268,14 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
 
             } else if (ch == 1 && sourceChannels == 1) {
 
-                for (size_t i = 0; i < nframes; ++i) {
+                for (int i = 0; i < nframes; ++i) {
                     output[i * 2 + ch] = tmpbuf[0][i] * m_outputGain;
                     float sample = fabsf(output[i * 2 + ch]);
                     if (sample > peak) peak = sample;
                 }
 
             } else { 
-                for (size_t i = 0; i < nframes; ++i) {
+                for (int i = 0; i < nframes; ++i) {
                     output[i * 2 + ch] = 0;
                 }
            }
@@ -287,8 +287,8 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
         m_source->setOutputLevels(peakLeft, peakRight);
 
     } else {
-        for (size_t ch = 0; ch < 2; ++ch) {
-            for (size_t i = 0; i < nframes; ++i) {
+        for (int ch = 0; ch < 2; ++ch) {
+            for (int i = 0; i < nframes; ++i) {
                 output[i * 2 + ch] = 0;
             }
         }
@@ -298,14 +298,14 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
 
         peakLeft = 0.0, peakRight = 0.0;
 
-        for (size_t ch = 0; ch < 2; ++ch) {
+        for (int ch = 0; ch < 2; ++ch) {
 	
             float peak = 0.0;
 
             if (ch < targetChannels) {
 
                 // PortAudio samples are interleaved
-                for (size_t i = 0; i < nframes; ++i) {
+                for (int i = 0; i < nframes; ++i) {
                     tmpbuf[ch][i] = input[i * 2 + ch];
                     float sample = fabsf(input[i * 2 + ch]);
                     if (sample > peak) peak = sample;
@@ -313,14 +313,14 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
 
             } else if (ch == 1 && targetChannels == 1) {
 
-                for (size_t i = 0; i < nframes; ++i) {
+                for (int i = 0; i < nframes; ++i) {
                     tmpbuf[0][i] = input[i * 2 + ch];
                     float sample = fabsf(input[i * 2 + ch]);
                     if (sample > peak) peak = sample;
                 }
 
             } else {
-                for (size_t i = 0; i < nframes; ++i) {
+                for (int i = 0; i < nframes; ++i) {
                     tmpbuf[ch][i] = 0;
                 }
             }

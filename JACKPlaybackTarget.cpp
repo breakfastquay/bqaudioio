@@ -79,15 +79,12 @@ JACKPlaybackTarget::processStatic(jack_nframes_t nframes, void *arg)
 }
 
 void
-JACKPlaybackTarget::setup(size_t channels)
+JACKPlaybackTarget::setup(int channels)
 {
     m_mutex.lock();
 
-    m_source->setTargetBlockSize(m_bufferSize);
-    m_source->setTargetSampleRate(m_sampleRate);
-
-    // Because we offer pan, we always want at least 2 channels
-    if (channels < 2) channels = 2;
+    m_source->setSystemPlaybackBlockSize(m_bufferSize);
+    m_source->setSystemPlaybackSampleRate(m_sampleRate);
 
     if (channels == m_outputs.size() || !m_client) {
 	m_mutex.unlock();
@@ -97,7 +94,7 @@ JACKPlaybackTarget::setup(size_t channels)
     const char **ports =
 	jack_get_ports(m_client, NULL, NULL,
 		       JackPortIsPhysical | JackPortIsInput);
-    size_t physicalPortCount = 0;
+    int physicalPortCount = 0;
     while (ports[physicalPortCount]) ++physicalPortCount;
 
 #ifdef DEBUG_AUDIO_JACK_TARGET    
@@ -122,7 +119,7 @@ JACKPlaybackTarget::setup(size_t channels)
 		<< "ERROR: JACKPlaybackTarget: Failed to create JACK output port "
 		<< m_outputs.size() << std::endl;
 	} else {
-	    m_source->setTargetPlayLatency(jack_port_get_latency(port));
+	    m_source->setSystemPlaybackLatency(jack_port_get_latency(port));
 	}
 
 	if (m_outputs.size() < physicalPortCount) {
@@ -167,15 +164,15 @@ JACKPlaybackTarget::process(jack_nframes_t nframes)
 
     float **buffers = (float **)alloca(m_outputs.size() * sizeof(float *));
 
-    for (size_t ch = 0; ch < m_outputs.size(); ++ch) {
+    for (int ch = 0; ch < m_outputs.size(); ++ch) {
 	buffers[ch] = (float *)jack_port_get_buffer(m_outputs[ch], nframes);
     }
 
     if (m_source) {
 	m_source->getSourceSamples(nframes, buffers);
     } else {
-	for (size_t ch = 0; ch < m_outputs.size(); ++ch) {
-	    for (size_t i = 0; i < nframes; ++i) {
+	for (int ch = 0; ch < m_outputs.size(); ++ch) {
+	    for (int i = 0; i < nframes; ++i) {
 		buffers[ch][i] = 0.0;
 	    }
 	}
@@ -183,11 +180,11 @@ JACKPlaybackTarget::process(jack_nframes_t nframes)
 
     float peakLeft = 0.0, peakRight = 0.0;
 
-    for (size_t ch = 0; ch < m_outputs.size(); ++ch) {
+    for (int ch = 0; ch < m_outputs.size(); ++ch) {
 
 	float peak = 0.0;
 
-	for (size_t i = 0; i < nframes; ++i) {
+	for (int i = 0; i < nframes; ++i) {
 	    buffers[ch][i] *= m_outputGain;
 	    float sample = fabsf(buffers[ch][i]);
 	    if (sample > peak) peak = sample;

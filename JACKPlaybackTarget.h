@@ -28,7 +28,7 @@ public:
     virtual double getCurrentTime() const;
 
 protected:
-    void setup(size_t channels);
+    void setup(int channels);
     int process(jack_nframes_t nframes);
 
     static int processStatic(jack_nframes_t, void *);
