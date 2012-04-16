@@ -11,6 +11,8 @@
 #include <cmath>
 #include <cstdio>
 
+#include <unistd.h> // getpid
+
 namespace Turbot {
 
 JACKPlaybackTarget::JACKPlaybackTarget(ApplicationPlaybackSource *source) :
