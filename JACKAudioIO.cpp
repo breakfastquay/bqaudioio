@@ -12,6 +12,8 @@
 #include <cmath>
 #include <cstdio>
 
+#include <unistd.h> // getpid
+
 //#define DEBUG_AUDIO_JACK_IO 1
 
 namespace Turbot {
