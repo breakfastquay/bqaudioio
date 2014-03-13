@@ -7,8 +7,8 @@
 #include "ApplicationPlaybackSource.h"
 
 #include "dsp/Resampler.h"
-#include "system/Allocators.h"
-#include "system/VectorOps.h"
+#include "bqvec/Allocators.h"
+#include "bqvec/VectorOps.h"
 
 #include <iostream>
 #include <cassert>
