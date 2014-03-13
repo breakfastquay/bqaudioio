@@ -14,7 +14,7 @@
 #include <cassert>
 #include <cmath>
 
-using namespace BreakfastQuay;
+using namespace breakfastquay;
 
 namespace Turbot {
 
