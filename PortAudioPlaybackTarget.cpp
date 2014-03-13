@@ -14,6 +14,8 @@
 #include <cassert>
 #include <cmath>
 
+using namespace BreakfastQuay;
+
 namespace Turbot {
 
 //#define DEBUG_AUDIO_PORT_AUDIO_TARGET 1

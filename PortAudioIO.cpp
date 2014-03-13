@@ -21,6 +21,8 @@
 
 //#define DEBUG_AUDIO_PORT_AUDIO_IO 1
 
+using namespace BreakfastQuay;
+
 namespace Turbot {
 
 #ifdef __LINUX__
