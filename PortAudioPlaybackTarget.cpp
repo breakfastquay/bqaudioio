@@ -7,12 +7,14 @@
 #include "ApplicationPlaybackSource.h"
 
 #include "dsp/Resampler.h"
-#include "system/Allocators.h"
-#include "system/VectorOps.h"
+#include "Allocators.h"
+#include "VectorOps.h"
 
 #include <iostream>
 #include <cassert>
 #include <cmath>
+
+using namespace breakfastquay;
 
 namespace Turbot {
 

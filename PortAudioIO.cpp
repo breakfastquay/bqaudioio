@@ -7,7 +7,7 @@
 #include "ApplicationPlaybackSource.h"
 #include "ApplicationRecordTarget.h"
 
-#include "system/VectorOps.h"
+#include "VectorOps.h"
 
 #include <iostream>
 #include <cassert>
@@ -20,6 +20,8 @@
 #endif
 
 //#define DEBUG_AUDIO_PORT_AUDIO_IO 1
+
+using namespace breakfastquay;
 
 namespace Turbot {
 
