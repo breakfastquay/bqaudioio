@@ -7,7 +7,7 @@
 #include "ApplicationPlaybackSource.h"
 #include "ApplicationRecordTarget.h"
 
-#include "bqvec/VectorOps.h"
+#include "VectorOps.h"
 
 #include <iostream>
 #include <cmath>
