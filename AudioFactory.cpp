@@ -4,6 +4,7 @@
 #include "AudioFactory.h"
 
 #include "JACKPlaybackTarget.h"
+#include "PulseAudioPlaybackTarget.h"
 #include "PortAudioPlaybackTarget.h"
 
 #include "JACKRecordSource.h"
@@ -27,6 +28,15 @@ AudioFactory::createCallbackPlayTarget(ApplicationPlaybackSource *source)
     if (target->isTargetOK()) return target;
     else {
 	std::cerr << "WARNING: AudioFactory::createCallbackTarget: Failed to open JACK target" << std::endl;
+	delete target;
+    }
+#endif
+
+#ifdef HAVE_LIBPULSE
+    target = new PulseAudioPlaybackTarget(source);
+    if (target->isTargetOK()) return target;
+    else {
+	std::cerr << "WARNING: AudioFactory::createCallbackTarget: Failed to open PulseAudio target" << std::endl;
 	delete target;
     }
 #endif
