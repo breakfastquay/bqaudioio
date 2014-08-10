@@ -133,6 +133,9 @@ PulseAudioPlaybackTarget::streamWrite(int requested)
 #endif
     if (m_done) return;
 
+    // requested is a byte count for an interleaved buffer, so number
+    // of frames = requested / (channels * sizeof(float))
+
     QMutexLocker locker(&m_mutex);
 
     pa_usec_t latency = 0;
@@ -149,8 +152,17 @@ PulseAudioPlaybackTarget::streamWrite(int requested)
 
     int sourceChannels = m_source->getApplicationChannelCount();
     if (sourceChannels == 0) {
-        cerr << "PulseAudioPlaybackTarget::streamWrite: No source channels!? Not writing anything" << endl;
-        //!!! ah but then it hangs because PA is still waiting for this and will never call us again! we should send a full buffer of however many channels PA thinks it has
+        //!!! but this is incredibly cpu-intensive and poor for
+        //!!! battery life, because it happens all the time when not
+        //!!! playing. should pause and resume the stream somehow
+        int samples = requested / sizeof(float);
+        output = new float[samples];
+        for (int i = 0; i < samples; ++i) {
+            output[i] = 0.f;
+        }
+        pa_stream_write(m_out, output, samples * sizeof(float),
+                        0, 0, PA_SEEK_RELATIVE);
+        m_source->setOutputLevels(0.f, 0.f);
         return;
     }
 
@@ -230,6 +242,8 @@ PulseAudioPlaybackTarget::streamWrite(int requested)
 
     pa_stream_write(m_out, output, nframes * tmpbufch * sizeof(float),
                     0, 0, PA_SEEK_RELATIVE);
+
+//    cerr << "peaks: " << peakLeft << ", " << peakRight << endl;
 
     m_source->setOutputLevels(peakLeft, peakRight);
 
