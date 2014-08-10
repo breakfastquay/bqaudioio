@@ -15,7 +15,7 @@ using std::cerr;
 using std::cout;
 using std::endl;
 
-#define DEBUG_PULSE_AUDIO_PLAYBACK_TARGET 1
+//#define DEBUG_PULSE_AUDIO_PLAYBACK_TARGET 1
 
 namespace Turbot {
 
