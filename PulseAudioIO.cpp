@@ -32,6 +32,7 @@ PulseAudioIO::PulseAudioIO(ApplicationRecordTarget *target,
     m_loopThread(0),
     m_bufferSize(0),
     m_sampleRate(0),
+    m_paChannels(2),
     m_done(false),
     m_captureReady(false),
     m_playbackReady(false)
@@ -56,7 +57,7 @@ PulseAudioIO::PulseAudioIO(ApplicationRecordTarget *target,
 	m_sampleRate = m_source->getApplicationSampleRate();
     }
     m_spec.rate = m_sampleRate;
-    m_spec.channels = 2;
+    m_spec.channels = m_paChannels;
     m_spec.format = PA_SAMPLE_FLOAT32NE;
 
     m_context = pa_context_new(m_api, "turbot");
@@ -206,14 +207,14 @@ PulseAudioIO::streamWrite(int requested)
 	    tmpbuf[i] = new float[tmpbufsz];
 	}
 
-        output = new float[tmpbufsz * tmpbufch];
+        output = new float[tmpbufsz * m_paChannels];
     }
 	
     m_source->getSourceSamples(nframes, tmpbuf);
 
     float peakLeft = 0.0, peakRight = 0.0;
 
-    for (int ch = 0; ch < 2; ++ch) {
+    for (int ch = 0; ch < m_paChannels; ++ch) {
 	
 	float peak = 0.0;
 
@@ -221,22 +222,22 @@ PulseAudioIO::streamWrite(int requested)
 
 	    // PulseAudio samples are interleaved
 	    for (int i = 0; i < nframes; ++i) {
-                output[i * 2 + ch] = tmpbuf[ch][i] * m_outputGain;
-                float sample = fabsf(output[i * 2 + ch]);
+                output[i * m_paChannels + ch] = tmpbuf[ch][i] * m_outputGain;
+                float sample = fabsf(output[i * m_paChannels + ch]);
                 if (sample > peak) peak = sample;
 	    }
 
 	} else if (ch == 1 && sourceChannels == 1) {
 
 	    for (int i = 0; i < nframes; ++i) {
-                output[i * 2 + ch] = tmpbuf[0][i] * m_outputGain;
-                float sample = fabsf(output[i * 2 + ch]);
+                output[i * m_paChannels + ch] = tmpbuf[0][i] * m_outputGain;
+                float sample = fabsf(output[i * m_paChannels + ch]);
                 if (sample > peak) peak = sample;
 	    }
 
 	} else {
 	    for (int i = 0; i < nframes; ++i) {
-		output[i * 2 + ch] = 0;
+		output[i * m_paChannels + ch] = 0;
 	    }
 	}
 
@@ -381,7 +382,7 @@ PulseAudioIO::streamStateChanged(pa_stream *stream)
     cerr << "PulseAudioIO::streamStateChanged" << endl;
 #endif
 
-    assert(stream == m_in || stream == m_out);
+    assert(stream == m_out);
 
     QMutexLocker locker(&m_mutex);
 

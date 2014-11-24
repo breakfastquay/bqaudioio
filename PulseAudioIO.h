@@ -72,6 +72,7 @@ protected:
 
     int m_bufferSize;
     int m_sampleRate;
+    int m_paChannels;
     bool m_done;
 
     bool m_captureReady;
