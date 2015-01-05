@@ -1,14 +1,14 @@
 /* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
 /* Copyright Chris Cannam - All Rights Reserved */
 
-#ifndef _AUDIO_PULSE_AUDIO_IO_H_
-#define _AUDIO_PULSE_AUDIO_IO_H_
+#ifndef _AUDIO_PULSE_AUDIO_PLAYBACK_TARGET_H_
+#define _AUDIO_PULSE_AUDIO_PLAYBACK_TARGET_H_
 
 #ifdef HAVE_LIBPULSE
 
 #include <pulse/pulseaudio.h>
 
-#include "SystemAudioIO.h"
+#include "SystemPlaybackTarget.h"
 
 #include "system/Thread.h"
 
@@ -16,31 +16,24 @@
 
 namespace Turbot {
 
-class ApplicationRecordTarget;
 class ApplicationPlaybackSource;
 
-class PulseAudioIO : public SystemAudioIO
+class PulseAudioPlaybackTarget : public SystemPlaybackTarget
 {
 public:
-    PulseAudioIO(ApplicationRecordTarget *recordTarget,
-		      ApplicationPlaybackSource *playSource);
-    virtual ~PulseAudioIO();
+    PulseAudioPlaybackTarget(ApplicationPlaybackSource *playSource);
+    virtual ~PulseAudioPlaybackTarget();
 
-    virtual bool isSourceOK() const;
-    virtual bool isSourceReady() const;
     virtual bool isTargetOK() const;
-    virtual bool isTargetReady() const;
 
     virtual double getCurrentTime() const;
 
 protected:
     void streamWrite(int);
-    void streamRead(int);
     void streamStateChanged(pa_stream *);
     void contextStateChanged();
 
     static void streamWriteStatic(pa_stream *, size_t, void *);
-    static void streamReadStatic(pa_stream *, size_t, void *);
     static void streamStateChangedStatic(pa_stream *, void *);
     static void streamOverflowStatic(pa_stream *, void *);
     static void streamUnderflowStatic(pa_stream *, void *);
@@ -64,7 +57,6 @@ protected:
     pa_mainloop *m_loop;
     pa_mainloop_api *m_api;
     pa_context *m_context;
-    pa_stream *m_in;
     pa_stream *m_out;
     pa_sample_spec m_spec;
 
@@ -75,7 +67,6 @@ protected:
     int m_paChannels;
     bool m_done;
 
-    bool m_captureReady;
     bool m_playbackReady;
 };
 
