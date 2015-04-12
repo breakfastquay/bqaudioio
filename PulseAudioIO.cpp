@@ -382,7 +382,7 @@ PulseAudioIO::streamStateChanged(pa_stream *stream)
     cerr << "PulseAudioIO::streamStateChanged" << endl;
 #endif
 
-    assert(stream == m_out);
+    assert(stream == m_in || stream == m_out);
 
     QMutexLocker locker(&m_mutex);
 
