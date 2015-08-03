@@ -10,7 +10,7 @@
 #include <dlfcn.h>
 #include <QObject> // so as to pull in Q_OS_* etc
 
-namespace Turbot {
+namespace breakfastquay {
 
 //#define DEBUG_AUDIO_JACK_TARGET 1
 

@@ -13,7 +13,7 @@
 
 #include <unistd.h> // getpid
 
-namespace Turbot {
+namespace breakfastquay {
 
 JACKPlaybackTarget::JACKPlaybackTarget(ApplicationPlaybackSource *source) :
     SystemPlaybackTarget(source),

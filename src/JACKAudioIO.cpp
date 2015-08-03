@@ -16,7 +16,7 @@
 
 //#define DEBUG_AUDIO_JACK_IO 1
 
-namespace Turbot {
+namespace breakfastquay {
 
 JACKAudioIO::JACKAudioIO(ApplicationRecordTarget *target,
 			 ApplicationPlaybackSource *source) :

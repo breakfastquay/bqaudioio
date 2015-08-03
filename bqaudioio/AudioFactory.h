@@ -4,7 +4,7 @@
 #ifndef _AUDIO_FACTORY_H_
 #define _AUDIO_FACTORY_H_
 
-namespace Turbot {
+namespace breakfastquay {
 
 class SystemRecordSource;
 class ApplicationRecordTarget;

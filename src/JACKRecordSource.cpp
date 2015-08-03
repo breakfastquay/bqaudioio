@@ -15,7 +15,7 @@
 
 //#define DEBUG_AUDIO_JACK_SOURCE 1
 
-namespace Turbot {
+namespace breakfastquay {
 
 JACKRecordSource::JACKRecordSource(ApplicationRecordTarget *target) :
     SystemRecordSource(target),

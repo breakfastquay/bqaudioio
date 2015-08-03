@@ -16,7 +16,7 @@
 
 using namespace breakfastquay;
 
-namespace Turbot {
+namespace breakfastquay {
 
 //#define DEBUG_AUDIO_PORT_AUDIO_TARGET 1
 

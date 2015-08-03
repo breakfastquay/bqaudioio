@@ -10,7 +10,7 @@
 
 #include "SystemAudioIO.h"
 
-namespace Turbot {
+namespace breakfastquay {
 
 class ApplicationRecordTarget;
 class ApplicationPlaybackSource;

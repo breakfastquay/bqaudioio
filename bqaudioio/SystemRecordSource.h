@@ -4,7 +4,7 @@
 #ifndef BQAUDIOIO_SYSTEM_RECORD_SOURCE_H
 #define BQAUDIOIO_SYSTEM_RECORD_SOURCE_H
 
-namespace Turbot {
+namespace breakfastquay {
 
 class ApplicationRecordTarget;
 

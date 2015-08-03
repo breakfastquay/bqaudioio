@@ -6,7 +6,7 @@
 
 #include <iostream>
 
-namespace Turbot {
+namespace breakfastquay {
 
 SystemRecordSource::SystemRecordSource(ApplicationRecordTarget *target) :
     m_target(target)

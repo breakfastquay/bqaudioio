@@ -3,7 +3,7 @@
 
 #include "SystemPlaybackTarget.h"
 
-namespace Turbot {
+namespace breakfastquay {
 
 SystemPlaybackTarget::SystemPlaybackTarget(ApplicationPlaybackSource *source) :
     m_source(source),

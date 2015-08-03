@@ -10,7 +10,7 @@
 
 #include "SystemPlaybackTarget.h"
 
-namespace Turbot {
+namespace breakfastquay {
 
 class ApplicationPlaybackSource;
 class Resampler;

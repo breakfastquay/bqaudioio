@@ -16,7 +16,7 @@
 
 #include <iostream>
 
-namespace Turbot {
+namespace breakfastquay {
 
 SystemPlaybackTarget *
 AudioFactory::createCallbackPlayTarget(ApplicationPlaybackSource *source)

@@ -4,7 +4,7 @@
 #ifndef BQAUDIOIO_SYSTEM_PLAYBACK_TARGET_H
 #define BQAUDIOIO_SYSTEM_PLAYBACK_TARGET_H
 
-namespace Turbot {
+namespace breakfastquay {
 
 class ApplicationPlaybackSource;
 

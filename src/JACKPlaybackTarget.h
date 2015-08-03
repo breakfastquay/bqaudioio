@@ -13,7 +13,7 @@
 
 #include <QMutex>
 
-namespace Turbot {
+namespace breakfastquay {
 
 class ApplicationPlaybackSource;
 

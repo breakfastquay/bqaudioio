@@ -14,7 +14,7 @@
 
 #include <QMutex>
 
-namespace Turbot {
+namespace breakfastquay {
 
 class ApplicationRecordTarget;
 class ApplicationPlaybackSource;

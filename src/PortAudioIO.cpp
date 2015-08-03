@@ -23,7 +23,7 @@
 
 using namespace breakfastquay;
 
-namespace Turbot {
+namespace breakfastquay {
 
 #ifdef __LINUX__
 extern "C" {

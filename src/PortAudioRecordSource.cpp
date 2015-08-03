@@ -12,7 +12,7 @@
 
 #define DEBUG_AUDIO_PORT_AUDIO_SOURCE 1
 
-namespace Turbot {
+namespace breakfastquay {
 
 #ifdef __LINUX__
 extern "C" {

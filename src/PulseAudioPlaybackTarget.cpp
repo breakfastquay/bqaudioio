@@ -17,7 +17,7 @@ using std::endl;
 
 //#define DEBUG_PULSE_AUDIO_PLAYBACK_TARGET 1
 
-namespace Turbot {
+namespace breakfastquay {
 
 PulseAudioPlaybackTarget::PulseAudioPlaybackTarget(ApplicationPlaybackSource *source) :
     SystemPlaybackTarget(source),
