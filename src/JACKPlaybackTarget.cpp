@@ -10,6 +10,7 @@
 #include <iostream>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 
 #include <unistd.h> // getpid
 
@@ -22,7 +23,7 @@ JACKPlaybackTarget::JACKPlaybackTarget(ApplicationPlaybackSource *source) :
     m_sampleRate(0)
 {
     char name[20];
-    strcpy(name, "turbot");
+    strcpy(name, "bqaudioio"); //!!! pass in
     m_client = jack_client_new(name);
 
     if (!m_client) {
@@ -83,13 +84,12 @@ JACKPlaybackTarget::processStatic(jack_nframes_t nframes, void *arg)
 void
 JACKPlaybackTarget::setup(int channels)
 {
-    m_mutex.lock();
+    lock_guard<mutex> guard(m_mutex);
 
     m_source->setSystemPlaybackBlockSize(m_bufferSize);
     m_source->setSystemPlaybackSampleRate(m_sampleRate);
 
     if (channels == m_outputs.size() || !m_client) {
-	m_mutex.unlock();
 	return;
     }
 
@@ -138,19 +138,18 @@ JACKPlaybackTarget::setup(int channels)
 	if (port) jack_port_unregister(m_client, port);
 	m_outputs.erase(itr);
     }
-
-    m_mutex.unlock();
 }
 
 int
 JACKPlaybackTarget::process(jack_nframes_t nframes)
 {
-    if (!m_mutex.tryLock()) {
+    if (!m_mutex.try_lock()) {
 	return 0;
     }
 
+    lock_guard<mutex> guard(m_mutex, adopt_lock);
+    
     if (m_outputs.empty()) {
-	m_mutex.unlock();
 	return 0;
     }
 
@@ -200,7 +199,6 @@ JACKPlaybackTarget::process(jack_nframes_t nframes)
 	m_source->setOutputLevels(peakLeft, peakRight);
     }
 
-    m_mutex.unlock();
     return 0;
 }
 

@@ -10,6 +10,7 @@
 #include <iostream>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 
 #include <unistd.h> // getpid
 
@@ -24,7 +25,7 @@ JACKRecordSource::JACKRecordSource(ApplicationRecordTarget *target) :
     m_sampleRate(0)
 {
     char name[100];
-    strcpy(name, "turbot");
+    strcpy(name, "bqaudioio"); //!!! pass in
     m_client = jack_client_new(name);
 
     if (!m_client) {

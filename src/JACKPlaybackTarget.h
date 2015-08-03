@@ -1,17 +1,16 @@
 /* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
 /* Copyright Chris Cannam - All Rights Reserved */
 
-#ifndef _AUDIO_JACK_TARGET_H_
-#define _AUDIO_JACK_TARGET_H_
+#ifndef BQAUDIOIO_JACK_TARGET_H_
+#define BQAUDIOIO_JACK_TARGET_H_
 
 #ifdef HAVE_JACK
 
 #include <jack/jack.h>
 #include <vector>
+#include <mutex>
 
 #include "SystemPlaybackTarget.h"
-
-#include <QMutex>
 
 namespace breakfastquay {
 
@@ -37,7 +36,7 @@ protected:
     std::vector<jack_port_t *>  m_outputs;
     jack_nframes_t              m_bufferSize;
     jack_nframes_t              m_sampleRate;
-    QMutex                      m_mutex;
+    std::mutex                  m_mutex;
 };
 
 }

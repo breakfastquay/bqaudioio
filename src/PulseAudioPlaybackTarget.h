@@ -1,18 +1,16 @@
 /* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
 /* Copyright Chris Cannam - All Rights Reserved */
 
-#ifndef _AUDIO_PULSE_AUDIO_PLAYBACK_TARGET_H_
-#define _AUDIO_PULSE_AUDIO_PLAYBACK_TARGET_H_
+#ifndef BQAUDIOIO_PULSE_AUDIO_PLAYBACK_TARGET_H
+#define BQAUDIOIO_PULSE_AUDIO_PLAYBACK_TARGET_H
 
 #ifdef HAVE_LIBPULSE
 
 #include <pulse/pulseaudio.h>
 
+#include <mutex>
+
 #include "SystemPlaybackTarget.h"
-
-#include "system/Thread.h"
-
-#include <QMutex>
 
 namespace breakfastquay {
 
@@ -39,7 +37,7 @@ protected:
     static void streamUnderflowStatic(pa_stream *, void *);
     static void contextStateChangedStatic(pa_context *, void *);
 
-    QMutex m_mutex;
+    std::mutex m_mutex;
 
     class MainLoopThread : public Thread
     {

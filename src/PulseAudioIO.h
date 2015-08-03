@@ -10,9 +10,7 @@
 
 #include "SystemAudioIO.h"
 
-#include "system/Thread.h"
-
-#include <QMutex>
+#include <mutex>
 
 namespace breakfastquay {
 
@@ -46,7 +44,7 @@ protected:
     static void streamUnderflowStatic(pa_stream *, void *);
     static void contextStateChangedStatic(pa_context *, void *);
 
-    QMutex m_mutex;
+    std::mutex m_mutex;
 
     class MainLoopThread : public Thread
     {

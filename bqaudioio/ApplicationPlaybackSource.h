@@ -1,12 +1,10 @@
 /* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
 /* Copyright Chris Cannam - All Rights Reserved */
 
-#ifndef _AUDIO_CALLBACK_PLAY_SOURCE_H_
-#define _AUDIO_CALLBACK_PLAY_SOURCE_H_
+#ifndef BQAUDIOIO_APPLICATION_PLAY_SOURCE_H
+#define BQAUDIOIO_APPLICATION_PLAY_SOURCE_H
 
 #include <stdlib.h>
-
-#include "base/TurbotTypes.h"
 
 namespace breakfastquay {
 

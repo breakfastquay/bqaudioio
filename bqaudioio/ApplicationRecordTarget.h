@@ -1,8 +1,8 @@
 /* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
 /* Copyright Chris Cannam - All Rights Reserved */
 
-#ifndef _AUDIO_CALLBACK_RECORD_TARGET_H_
-#define _AUDIO_CALLBACK_RECORD_TARGET_H_
+#ifndef BQAUDIOIO_APPLICATION_RECORD_TARGET_H
+#define BQAUDIOIO_APPLICATION_RECORD_TARGET_H
 
 #include <stdlib.h>
 

@@ -8,14 +8,13 @@
 
 #include <jack/jack.h>
 #include <dlfcn.h>
-#include <QObject> // so as to pull in Q_OS_* etc
 
 namespace breakfastquay {
 
 //#define DEBUG_AUDIO_JACK_TARGET 1
 
 #ifdef BUILD_STATIC
-#ifdef Q_OS_LINUX
+#if (! defined _WIN32) && (! defined __APPLE__)
 
 // Some lunacy to enable JACK support in static builds.  JACK isn't
 // supposed to be linked statically, because it depends on a
@@ -39,7 +38,7 @@ static void *symbol(const char *name)
             if (!library) library = ::dlopen("libjack.so.0", RTLD_NOW);
             if (!library) library = ::dlopen("libjack.so", RTLD_NOW);
             if (!library) {
-                std::cerr << "WARNING: JACKPlaybackTarget: Failed to load JACK library: "
+                std::cerr << "WARNING: Failed to load JACK library: "
                           << ::dlerror() << " (tried .so, .so.0, .so.1)"
                           << std::endl;
             }

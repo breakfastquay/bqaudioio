@@ -11,10 +11,13 @@
 #include <iostream>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 
 #include <unistd.h> // getpid
 
 //#define DEBUG_AUDIO_JACK_IO 1
+
+using namespace std;
 
 namespace breakfastquay {
 
@@ -26,16 +29,15 @@ JACKAudioIO::JACKAudioIO(ApplicationRecordTarget *target,
     m_sampleRate(0)
 {
     char name[20];
-    strcpy(name, "turbot");
+    strcpy(name, "bqaudioio"); //!!! pass in name
     m_client = jack_client_new(name);
 
     if (!m_client) {
 	sprintf(name, "turbot (%d)", (int)getpid());
 	m_client = jack_client_new(name);
 	if (!m_client) {
-	    std::cerr
-		<< "ERROR: JACKAudioIO: Failed to connect to JACK server"
-		<< std::endl;
+	    cerr << "ERROR: JACKAudioIO: Failed to connect to JACK server"
+		<< endl;
 	}
     }
 
@@ -48,8 +50,8 @@ JACKAudioIO::JACKAudioIO(ApplicationRecordTarget *target,
     jack_set_process_callback(m_client, processStatic, this);
 
     if (jack_activate(m_client)) {
-	std::cerr << "ERROR: JACKAudioIO: Failed to activate JACK client"
-		  << std::endl;
+	cerr << "ERROR: JACKAudioIO: Failed to activate JACK client"
+		  << endl;
     }
 
     setup(2);
@@ -100,7 +102,7 @@ JACKAudioIO::xrunStatic(void *arg)
 void
 JACKAudioIO::setup(int channels)
 {
-    m_mutex.lock();
+    lock_guard<mutex> guard(m_mutex);
 
     if (m_source) {
         m_source->setSystemPlaybackBlockSize(m_bufferSize);
@@ -115,7 +117,6 @@ JACKAudioIO::setup(int channels)
     }
 
     if (channels == m_outputs.size() || !m_client) {
-	m_mutex.unlock();
 	return;
     }
 
@@ -133,7 +134,7 @@ JACKAudioIO::setup(int channels)
     while (capPorts && capPorts[capPortCount]) ++capPortCount;
 
 #ifdef DEBUG_AUDIO_JACK_IO    
-    std::cerr << "JACKAudioIO::setup: have " << channels << " channels, " << capPortCount << " capture ports, " << playPortCount << " playback ports" << std::endl;
+    cerr << "JACKAudioIO::setup: have " << channels << " channels, " << capPortCount << " capture ports, " << playPortCount << " playback ports" << endl;
 #endif
 
     if (m_source) {
@@ -152,9 +153,8 @@ JACKAudioIO::setup(int channels)
                                       0);
 
             if (!port) {
-                std::cerr
-                    << "ERROR: JACKAudioIO: Failed to create JACK output port "
-                    << m_outputs.size() << std::endl;
+                cerr << "ERROR: JACKAudioIO: Failed to create JACK output port "
+                    << m_outputs.size() << endl;
                 return;
             } else {
                 m_source->setSystemPlaybackLatency(jack_port_get_latency(port));
@@ -186,9 +186,8 @@ JACKAudioIO::setup(int channels)
                                       0);
 
             if (!port) {
-                std::cerr
-                    << "ERROR: JACKAudioIO: Failed to create JACK input port "
-                    << m_inputs.size() << std::endl;
+                cerr << "ERROR: JACKAudioIO: Failed to create JACK input port "
+                    << m_inputs.size() << endl;
                 return;
             } else {
                 m_target->setSystemRecordLatency(jack_port_get_latency(port));
@@ -205,7 +204,7 @@ JACKAudioIO::setup(int channels)
     }
 
     while (m_outputs.size() > channels) {
-	std::vector<jack_port_t *>::iterator itr = m_outputs.end();
+	vector<jack_port_t *>::iterator itr = m_outputs.end();
 	--itr;
 	jack_port_t *port = *itr;
 	if (port) jack_port_unregister(m_client, port);
@@ -213,35 +212,34 @@ JACKAudioIO::setup(int channels)
     }
 
     while (m_inputs.size() > channels) {
-	std::vector<jack_port_t *>::iterator itr = m_inputs.end();
+	vector<jack_port_t *>::iterator itr = m_inputs.end();
 	--itr;
 	jack_port_t *port = *itr;
 	if (port) jack_port_unregister(m_client, port);
 	m_inputs.erase(itr);
     }
-
-    m_mutex.unlock();
 }
 
 int
 JACKAudioIO::process(jack_nframes_t nframes)
 {
-    if (!m_mutex.tryLock()) {
+    if (!m_mutex.try_lock()) {
 	return 0;
     }
 
+    lock_guard<mutex> guard(m_mutex, adopt_lock);
+    
     if (m_outputs.empty() && m_inputs.empty()) {
-	m_mutex.unlock();
 	return 0;
     }
 
 #ifdef DEBUG_AUDIO_JACK_IO    
-    std::cout << "JACKAudioIO::process(" << nframes << "): have a purpose in life" << std::endl;
+    cout << "JACKAudioIO::process(" << nframes << "): have a purpose in life" << endl;
 #endif
 
 #ifdef DEBUG_AUDIO_JACK_IO    
     if (m_bufferSize != nframes) {
-	std::cerr << "WARNING: m_bufferSize != nframes (" << m_bufferSize << " != " << nframes << ")" << std::endl;
+	cerr << "WARNING: m_bufferSize != nframes (" << m_bufferSize << " != " << nframes << ")" << endl;
     }
 #endif
 
@@ -319,14 +317,13 @@ JACKAudioIO::process(jack_nframes_t nframes)
         */
     }
 
-    m_mutex.unlock();
     return 0;
 }
 
 int
 JACKAudioIO::xrun()
 {
-    std::cerr << "JACKAudioIO: xrun!" << std::endl;
+    cerr << "JACKAudioIO: xrun!" << endl;
     if (m_target) m_target->audioProcessingOverload();
     if (m_source) m_source->audioProcessingOverload();
     return 0;
