@@ -1,13 +1,11 @@
 /* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
 /* Copyright Chris Cannam - All Rights Reserved */
 
-#ifndef _AUDIO_CALLBACK_IO_H_
-#define _AUDIO_CALLBACK_IO_H_
+#ifndef BQAUDIOIO_SYSTEM_AUDIO_IO_H
+#define BQAUDIOIO_SYSTEM_AUDIO_IO_H
 
 #include "SystemRecordSource.h"
 #include "SystemPlaybackTarget.h"
-
-#include "base/TurbotTypes.h"
 
 namespace Turbot {
 

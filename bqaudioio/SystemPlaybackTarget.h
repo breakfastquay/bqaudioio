@@ -1,21 +1,15 @@
 /* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
 /* Copyright Chris Cannam - All Rights Reserved */
 
-#ifndef _AUDIO_CALLBACK_PLAY_TARGET_H_
-#define _AUDIO_CALLBACK_PLAY_TARGET_H_
-
-#include <QObject>
-
-#include "base/TurbotTypes.h"
+#ifndef BQAUDIOIO_SYSTEM_PLAYBACK_TARGET_H
+#define BQAUDIOIO_SYSTEM_PLAYBACK_TARGET_H
 
 namespace Turbot {
 
 class ApplicationPlaybackSource;
 
-class SystemPlaybackTarget : public QObject
+class SystemPlaybackTarget
 {
-    Q_OBJECT
-
 public:
     SystemPlaybackTarget(ApplicationPlaybackSource *source);
     virtual ~SystemPlaybackTarget();
@@ -29,7 +23,6 @@ public:
 	return m_outputGain;
     }
 
-public slots:
     /**
      * Set the playback gain (0.0 = silence, 1.0 = levels unmodified)
      */

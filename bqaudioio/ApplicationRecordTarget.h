@@ -6,8 +6,6 @@
 
 #include <stdlib.h>
 
-#include "base/TurbotTypes.h"
-
 namespace Turbot {
 
 class ApplicationRecordTarget
