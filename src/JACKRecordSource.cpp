@@ -16,6 +16,8 @@
 
 //#define DEBUG_AUDIO_JACK_SOURCE 1
 
+using namespace std;
+
 namespace breakfastquay {
 
 JACKRecordSource::JACKRecordSource(ApplicationRecordTarget *target) :
@@ -24,21 +26,21 @@ JACKRecordSource::JACKRecordSource(ApplicationRecordTarget *target) :
     m_bufferSize(0),
     m_sampleRate(0)
 {
-    char name[100];
-    strcpy(name, "bqaudioio"); //!!! pass in
-    m_client = jack_client_new(name);
+    JackOptions options = JackNullOption;
+
+#if defined(HAVE_PORTAUDIO) || defined(HAVE_LIBPULSE)
+    options = JackNoStartServer;
+#endif
+
+    JackStatus status = JackStatus(0);
+    m_client = jack_client_open(target->getClientName().c_str(),
+                                options, &status);
 
     if (!m_client) {
-	sprintf(name, "turbot (%d)", (int)getpid());
-	m_client = jack_client_new(name);
-	if (!m_client) {
-	    std::cerr
-		<< "ERROR: JACKRecordSource: Failed to connect to JACK server"
-		<< std::endl;
-	}
+        cerr << "ERROR: JACKPlaybackTarget: Failed to connect to JACK server"
+             << endl;
+        return;
     }
-
-    if (!m_client) return;
 
     m_bufferSize = jack_get_buffer_size(m_client);
     m_sampleRate = jack_get_sample_rate(m_client);
@@ -47,8 +49,8 @@ JACKRecordSource::JACKRecordSource(ApplicationRecordTarget *target) :
     jack_set_process_callback(m_client, processStatic, this);
 
     if (jack_activate(m_client)) {
-	std::cerr << "ERROR: JACKRecordSource: Failed to activate JACK client"
-		  << std::endl;
+	cerr << "ERROR: JACKRecordSource: Failed to activate JACK client"
+		  << endl;
     }
 
     m_target->setSystemRecordBlockSize(m_bufferSize);
@@ -70,11 +72,13 @@ JACKRecordSource::JACKRecordSource(ApplicationRecordTarget *target) :
 				  0);
 
 	if (!port) {
-	    std::cerr
+	    cerr
 		<< "ERROR: JACKRecordSource: Failed to create JACK input port "
-		<< m_inputs.size() << std::endl;
+		<< m_inputs.size() << endl;
 	} else {
-	    m_target->setSystemRecordLatency(jack_port_get_latency(port));
+            jack_latency_range_t range;
+            jack_port_get_latency_range(port, JackCaptureLatency, &range);
+            m_target->setSystemRecordLatency(range.max);
 	}
 
 	m_inputs.push_back(port);
@@ -115,12 +119,12 @@ JACKRecordSource::process(jack_nframes_t nframes)
     }
 
 #ifdef DEBUG_AUDIO_JACK_SOURCE    
-    std::cout << "JACKRecordSource::process(" << nframes << "), have " << m_inputs.size() << " inputs" << std::endl;
+    cout << "JACKRecordSource::process(" << nframes << "), have " << m_inputs.size() << " inputs" << endl;
 #endif
 
 #ifdef DEBUG_AUDIO_JACK_SOURCE    
     if (m_bufferSize != nframes) {
-	std::cerr << "WARNING: m_bufferSize != nframes (" << m_bufferSize << " != " << nframes << ")" << std::endl;
+	cerr << "WARNING: m_bufferSize != nframes (" << m_bufferSize << " != " << nframes << ")" << endl;
     }
 #endif
 
@@ -159,7 +163,7 @@ JACKRecordSource::process(jack_nframes_t nframes)
 int
 JACKRecordSource::xrun()
 {
-    std::cerr << "JACKRecordSource: xrun!" << std::endl;
+    cerr << "JACKRecordSource: xrun!" << endl;
     if (m_target) m_target->audioProcessingOverload();
     return 0;
 }

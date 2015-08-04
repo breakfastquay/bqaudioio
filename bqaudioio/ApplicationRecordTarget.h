@@ -4,7 +4,7 @@
 #ifndef BQAUDIOIO_APPLICATION_RECORD_TARGET_H
 #define BQAUDIOIO_APPLICATION_RECORD_TARGET_H
 
-#include <stdlib.h>
+#include <string>
 
 namespace breakfastquay {
 
@@ -13,6 +13,8 @@ class ApplicationRecordTarget
 public:
     virtual ~ApplicationRecordTarget() { }
 
+    virtual std::string getClientName() const = 0;
+    
     virtual int getApplicationSampleRate() const { return 0; }
     virtual int getApplicationChannelCount() const = 0; //!!! does this make sense at all? I think the target should have to deal with mismatches in channel count and sample rate
     

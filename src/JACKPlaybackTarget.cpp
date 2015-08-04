@@ -24,21 +24,21 @@ JACKPlaybackTarget::JACKPlaybackTarget(ApplicationPlaybackSource *source) :
     m_bufferSize(0),
     m_sampleRate(0)
 {
-    char name[20];
-    strcpy(name, "bqaudioio"); //!!! pass in
-    m_client = jack_client_new(name);
+    JackOptions options = JackNullOption;
+
+#if defined(HAVE_PORTAUDIO) || defined(HAVE_LIBPULSE)
+    options = JackNoStartServer;
+#endif
+
+    JackStatus status = JackStatus(0);
+    m_client = jack_client_open(source->getClientName().c_str(),
+                                options, &status);
 
     if (!m_client) {
-	sprintf(name, "turbot (%d)", (int)getpid());
-	m_client = jack_client_new(name);
-	if (!m_client) {
-	    std::cerr
-		<< "ERROR: JACKPlaybackTarget: Failed to connect to JACK server"
-		<< std::endl;
-	}
+        cerr << "ERROR: JACKPlaybackTarget: Failed to connect to JACK server"
+             << endl;
+        return;
     }
-
-    if (!m_client) return;
 
     m_bufferSize = jack_get_buffer_size(m_client);
     m_sampleRate = jack_get_sample_rate(m_client);
@@ -46,8 +46,8 @@ JACKPlaybackTarget::JACKPlaybackTarget(ApplicationPlaybackSource *source) :
     jack_set_process_callback(m_client, processStatic, this);
 
     if (jack_activate(m_client)) {
-	std::cerr << "ERROR: JACKPlaybackTarget: Failed to activate JACK client"
-		  << std::endl;
+	cerr << "ERROR: JACKPlaybackTarget: Failed to activate JACK client"
+		  << endl;
     }
 
     setup(2);
@@ -102,7 +102,7 @@ JACKPlaybackTarget::setup(int channels)
     while (ports[physicalPortCount]) ++physicalPortCount;
 
 #ifdef DEBUG_AUDIO_JACK_TARGET    
-    std::cerr << "JACKPlaybackTarget::sourceModelReplaced: have " << channels << " channels and " << physicalPortCount << " physical ports" << std::endl;
+    cerr << "JACKPlaybackTarget::sourceModelReplaced: have " << channels << " channels and " << physicalPortCount << " physical ports" << endl;
 #endif
 
     while (m_outputs.size() < channels) {
@@ -119,11 +119,13 @@ JACKPlaybackTarget::setup(int channels)
 				  0);
 
 	if (!port) {
-	    std::cerr
+	    cerr
 		<< "ERROR: JACKPlaybackTarget: Failed to create JACK output port "
-		<< m_outputs.size() << std::endl;
+		<< m_outputs.size() << endl;
 	} else {
-	    m_source->setSystemPlaybackLatency(jack_port_get_latency(port));
+            jack_latency_range_t range;
+            jack_port_get_latency_range(port, JackPlaybackLatency, &range);
+            m_source->setSystemPlaybackLatency(range.max);
 	}
 
 	if (m_outputs.size() < physicalPortCount) {
@@ -134,7 +136,7 @@ JACKPlaybackTarget::setup(int channels)
     }
 
     while (m_outputs.size() > channels) {
-	std::vector<jack_port_t *>::iterator itr = m_outputs.end();
+	vector<jack_port_t *>::iterator itr = m_outputs.end();
 	--itr;
 	jack_port_t *port = *itr;
 	if (port) jack_port_unregister(m_client, port);
@@ -156,12 +158,12 @@ JACKPlaybackTarget::process(jack_nframes_t nframes)
     }
 
 #ifdef DEBUG_AUDIO_JACK_TARGET    
-    std::cout << "JACKPlaybackTarget::process(" << nframes << "): have a source" << std::endl;
+    cout << "JACKPlaybackTarget::process(" << nframes << "): have a source" << endl;
 #endif
 
 #ifdef DEBUG_AUDIO_JACK_TARGET    
     if (m_bufferSize != nframes) {
-	std::cerr << "WARNING: m_bufferSize != nframes (" << m_bufferSize << " != " << nframes << ")" << std::endl;
+	cerr << "WARNING: m_bufferSize != nframes (" << m_bufferSize << " != " << nframes << ")" << endl;
     }
 #endif
 

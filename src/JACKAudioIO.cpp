@@ -28,20 +28,21 @@ JACKAudioIO::JACKAudioIO(ApplicationRecordTarget *target,
     m_bufferSize(0),
     m_sampleRate(0)
 {
-    char name[20];
-    strcpy(name, "bqaudioio"); //!!! pass in name
-    m_client = jack_client_new(name);
+    JackOptions options = JackNullOption;
+
+#if defined(HAVE_PORTAUDIO) || defined(HAVE_LIBPULSE)
+    options = JackNoStartServer;
+#endif
+
+    JackStatus status = JackStatus(0);
+    m_client = jack_client_open(source->getClientName().c_str(),
+                                options, &status);
 
     if (!m_client) {
-	sprintf(name, "turbot (%d)", (int)getpid());
-	m_client = jack_client_new(name);
-	if (!m_client) {
-	    cerr << "ERROR: JACKAudioIO: Failed to connect to JACK server"
-		<< endl;
-	}
+        cerr << "ERROR: JACKPlaybackTarget: Failed to connect to JACK server"
+             << endl;
+        return;
     }
-
-    if (!m_client) return;
 
     m_bufferSize = jack_get_buffer_size(m_client);
     m_sampleRate = jack_get_sample_rate(m_client);
@@ -157,7 +158,9 @@ JACKAudioIO::setup(int channels)
                     << m_outputs.size() << endl;
                 return;
             } else {
-                m_source->setSystemPlaybackLatency(jack_port_get_latency(port));
+                jack_latency_range_t range;
+                jack_port_get_latency_range(port, JackPlaybackLatency, &range);
+                m_source->setSystemPlaybackLatency(range.max);
             }
 
             if (m_outputs.size() < playPortCount) {
@@ -190,7 +193,9 @@ JACKAudioIO::setup(int channels)
                     << m_inputs.size() << endl;
                 return;
             } else {
-                m_target->setSystemRecordLatency(jack_port_get_latency(port));
+                jack_latency_range_t range;
+                jack_port_get_latency_range(port, JackCaptureLatency, &range);
+                m_target->setSystemRecordLatency(range.max);
             }
 
             if (m_inputs.size() < capPortCount) {

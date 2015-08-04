@@ -4,7 +4,7 @@
 #ifndef BQAUDIOIO_APPLICATION_PLAY_SOURCE_H
 #define BQAUDIOIO_APPLICATION_PLAY_SOURCE_H
 
-#include <stdlib.h>
+#include <string>
 
 namespace breakfastquay {
 
@@ -13,11 +13,11 @@ class ApplicationPlaybackSource
 public:
     virtual ~ApplicationPlaybackSource() { }
 
-    virtual int getApplicationSampleRate() = 0; // 0 for unknown or don't care
-    virtual int getApplicationChannelCount() = 0;
-
-    virtual long getCurrentPlayingFrame() const = 0;
+    virtual std::string getClientName() const = 0;
     
+    virtual int getApplicationSampleRate() const = 0; // 0 for unknown or don't care //!!! doc this properly
+    virtual int getApplicationChannelCount() const = 0;
+
     virtual void setSystemPlaybackBlockSize(int) = 0;
     virtual void setSystemPlaybackSampleRate(int) = 0;
     virtual void setSystemPlaybackLatency(int) = 0;

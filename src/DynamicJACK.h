@@ -1,17 +1,8 @@
 /* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
 /* Copyright Chris Cannam - All Rights Reserved */
 
-#ifndef _DYNAMIC_JACK_H_
-#define _DYNAMIC_JACK_H_
-
-#ifdef HAVE_JACK
-
-#include <jack/jack.h>
-#include <dlfcn.h>
-
-namespace breakfastquay {
-
-//#define DEBUG_AUDIO_JACK_TARGET 1
+#ifndef BQAUDIOIO_DYNAMIC_JACK_H
+#define BQAUDIOIO_DYNAMIC_JACK_H
 
 #ifdef BUILD_STATIC
 #if (! defined _WIN32) && (! defined __APPLE__)
@@ -25,6 +16,18 @@ namespace breakfastquay {
 // at all during the build, instead using dlopen and runtime symbol
 // lookup to switch on JACK support at runtime.  The following big
 // mess (down to the #endifs) is the code that implements this.
+
+#ifdef HAVE_JACK
+
+#include <jack/jack.h>
+#include <dlfcn.h>
+
+#include <map>
+#include <iostream>
+
+namespace breakfastquay {
+
+//#define DEBUG_AUDIO_JACK_TARGET 1
 
 static void *symbol(const char *name)
 {
@@ -149,6 +152,20 @@ static void *dynamic_jack_port_get_buffer(jack_port_t *port,
     return f(port, sz);
 }
 
+static void dynamic_jack_port_get_latency_range(jack_port_t *port,
+                                                jack_latency_callback_mode_t mode,
+                                                jack_latency_range_t *range)
+{
+    typedef void (*func)(jack_port_t *, jack_latency_callback_mode_t, jack_latency_range_t *);
+    void *s = symbol("jack_port_get_latency_range");
+    if (!s) {
+        range->min = range->max = 0;
+        return;
+    }
+    func f = (func)s;
+    f(port, mode, range);
+}
+
 static int dynamic_jack_port_unregister(jack_client_t *client,
                                         jack_port_t *port)
 {
@@ -193,12 +210,14 @@ dynamic1(const char *, jack_port_name, const jack_port_t *, 0);
 #define jack_port_name dynamic_jack_port_name
 #define jack_connect dynamic_jack_connect
 #define jack_port_get_buffer dynamic_jack_port_get_buffer
-
-#endif
-#endif
+#define jack_port_get_latency_range dynamic_jack_port_get_latency_range
 
 }
 
-#endif
+#endif // HAVE_JACK
 
-#endif
+#endif // (! defined _WIN32) && (! defined __APPLE__)
+
+#endif // BUILD_STATIC
+
+#endif // BQAUDIOIO_DYNAMIC_JACK_H
