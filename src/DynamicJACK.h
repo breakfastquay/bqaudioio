@@ -55,6 +55,19 @@ static void *symbol(const char *name)
     return symbol;
 }
 
+static jack_client_t *dynamic_jack_client_open(const char *client_name,
+                                               jack_options_t options,
+                                               jack_status_t *status, ...)
+{
+    typedef jack_client_t *(*func)(const char *client_name,
+                                   jack_options_t options,
+                                   jack_status_t *status, ...);
+    void *s = symbol("jack_client_open");
+    if (!s) return 0;
+    func f = (func)s;
+    return f(client_name, options, status); // varargs not supported here
+}
+
 static int dynamic_jack_set_process_callback(jack_client_t *client,
                                              JackProcessCallback process_callback,
                                              void *arg)
@@ -165,6 +178,7 @@ dynamic1(jack_nframes_t, jack_port_get_latency, jack_port_t *, 0);
 dynamic1(const char *, jack_port_name, const jack_port_t *, 0);
 
 #define jack_client_new dynamic_jack_client_new
+#define jack_client_open dynamic_jack_client_open
 #define jack_get_buffer_size dynamic_jack_get_buffer_size
 #define jack_get_sample_rate dynamic_jack_get_sample_rate
 #define jack_set_process_callback dynamic_jack_set_process_callback
