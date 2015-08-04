@@ -9,6 +9,7 @@
 #include <pulse/pulseaudio.h>
 
 #include <mutex>
+#include <thread>
 
 #include "SystemPlaybackTarget.h"
 
@@ -38,27 +39,18 @@ protected:
     static void contextStateChangedStatic(pa_context *, void *);
 
     std::mutex m_mutex;
+    std::thread m_loopthread;
 
-    class MainLoopThread : public Thread
-    {
-    public:
-        MainLoopThread(pa_mainloop *loop) : m_loop(loop) { } //!!! RT???
-        virtual void run() {
-            int rv = 0;
-            pa_mainloop_run(m_loop, &rv); //!!! check return value from this, and rv
-        }
-
-    private:
-        pa_mainloop *m_loop;
-    };
+    virtual void threadRun() {
+        int rv = 0;
+        pa_mainloop_run(m_loop, &rv); //!!! check return value from this, and rv
+    }
 
     pa_mainloop *m_loop;
     pa_mainloop_api *m_api;
     pa_context *m_context;
     pa_stream *m_out;
     pa_sample_spec m_spec;
-
-    MainLoopThread *m_loopThread;
 
     int m_bufferSize;
     int m_sampleRate;

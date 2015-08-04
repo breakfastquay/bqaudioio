@@ -17,8 +17,6 @@ class Resampler;
 
 class PortAudioPlaybackTarget : public SystemPlaybackTarget
 {
-    Q_OBJECT
-
 public:
     PortAudioPlaybackTarget(ApplicationPlaybackSource *source);
     virtual ~PortAudioPlaybackTarget();

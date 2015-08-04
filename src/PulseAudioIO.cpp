@@ -7,14 +7,10 @@
 #include "ApplicationPlaybackSource.h"
 #include "ApplicationRecordTarget.h"
 
-#include "VectorOps.h"
-
 #include <iostream>
 #include <cmath>
 
-using std::cerr;
-using std::cout;
-using std::endl;
+using namespace std;
 
 //#define DEBUG_AUDIO_PULSE_AUDIO_IO 1
 
@@ -23,13 +19,11 @@ namespace breakfastquay {
 PulseAudioIO::PulseAudioIO(ApplicationRecordTarget *target,
                            ApplicationPlaybackSource *source) :
     SystemAudioIO(target, source),
-    m_mutex(QMutex::Recursive), //!!!???
     m_loop(0),
     m_api(0),
     m_context(0),
     m_in(0), 
     m_out(0),
-    m_loopThread(0),
     m_bufferSize(0),
     m_sampleRate(0),
     m_paChannels(2),
@@ -70,8 +64,7 @@ PulseAudioIO::PulseAudioIO(ApplicationRecordTarget *target,
 
     pa_context_connect(m_context, 0, (pa_context_flags_t)0, 0); // default server
 
-    m_loopThread = new MainLoopThread(m_loop);
-    m_loopThread->start();
+    m_loopthread = thread([this]() { threadRun(); });
 
 #ifdef DEBUG_PULSE_AUDIO_IO
     cerr << "PulseAudioIO: initialised OK" << endl;
@@ -88,7 +81,7 @@ PulseAudioIO::~PulseAudioIO()
 
     m_done = true;
 
-    QMutexLocker locker(&m_mutex);
+    lock_guard<mutex> guard(m_mutex);
 
     if (m_in) pa_stream_unref(m_in);
     if (m_out) pa_stream_unref(m_out);
@@ -157,7 +150,7 @@ PulseAudioIO::streamWrite(int requested)
 #endif
     if (m_done) return;
 
-    QMutexLocker locker(&m_mutex);
+    lock_guard<mutex> guard(m_mutex);
 
     pa_usec_t latency = 0;
     int negative = 0;
@@ -277,8 +270,8 @@ PulseAudioIO::streamRead(int available)
     cerr << "PulseAudioIO::streamRead(" << available << ")" << endl;
 #endif
 
-    QMutexLocker locker(&m_mutex);
-
+    lock_guard<mutex> guard(m_mutex);
+    
     pa_usec_t latency = 0;
     int negative = 0;
     if (!pa_stream_get_latency(m_in, &latency, &negative)) {
@@ -384,7 +377,7 @@ PulseAudioIO::streamStateChanged(pa_stream *stream)
 
     assert(stream == m_in || stream == m_out);
 
-    QMutexLocker locker(&m_mutex);
+    lock_guard<mutex> guard(m_mutex);
 
     switch (pa_stream_get_state(stream)) {
 
@@ -458,7 +451,7 @@ PulseAudioIO::contextStateChanged()
 #ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
     cerr << "PulseAudioIO::contextStateChanged" << endl;
 #endif
-    QMutexLocker locker(&m_mutex);
+    lock_guard<mutex> guard(m_mutex);
 
     switch (pa_context_get_state(m_context)) {
 

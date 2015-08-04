@@ -6,15 +6,15 @@
 #include "PortAudioPlaybackTarget.h"
 #include "ApplicationPlaybackSource.h"
 
-#include "dsp/Resampler.h"
-#include "Allocators.h"
-#include "VectorOps.h"
+#include "bqresample/Resampler.h"
+#include "bqvec/Allocators.h"
+#include "bqvec/VectorOps.h"
 
 #include <iostream>
 #include <cassert>
 #include <cmath>
 
-using namespace breakfastquay;
+using namespace std;
 
 namespace breakfastquay {
 
@@ -47,7 +47,7 @@ PortAudioPlaybackTarget::PortAudioPlaybackTarget(ApplicationPlaybackSource *sour
 
     err = Pa_Initialize();
     if (err != paNoError) {
-	std::cerr << "ERROR: PortAudioPlaybackTarget: Failed to initialize PortAudio" << std::endl;
+	cerr << "ERROR: PortAudioPlaybackTarget: Failed to initialize PortAudio" << endl;
 	return;
     }
 
@@ -57,12 +57,12 @@ PortAudioPlaybackTarget::PortAudioPlaybackTarget(ApplicationPlaybackSource *sour
 	m_sampleRate = m_source->getApplicationSampleRate();
     }
 
-    std::cerr << "Sample rate: " << m_sampleRate << std::endl;
+    cerr << "Sample rate: " << m_sampleRate << endl;
 
     PaStreamParameters op;
     op.device = Pa_GetDefaultOutputDevice();
 
-    std::cerr << "device: " << op.device << std::endl;
+    cerr << "device: " << op.device << endl;
     
     op.channelCount = 2;
     op.sampleFormat = paFloat32;
@@ -80,7 +80,7 @@ PortAudioPlaybackTarget::PortAudioPlaybackTarget(ApplicationPlaybackSource *sour
     }
 
     if (err != paNoError) {
-	std::cerr << "ERROR: PortAudioPlaybackTarget: Failed to open PortAudio stream: " << Pa_GetErrorText(err) << std::endl;
+	cerr << "ERROR: PortAudioPlaybackTarget: Failed to open PortAudio stream: " << Pa_GetErrorText(err) << endl;
 	m_stream = 0;
 	Pa_Terminate();
 	return;
@@ -91,7 +91,7 @@ PortAudioPlaybackTarget::PortAudioPlaybackTarget(ApplicationPlaybackSource *sour
     if (m_bufferSize == 0) {
 	m_bufferSize = m_latency;
 	if (m_bufferSize == 0) {
-//	    std::cerr << "PortAudioPlaybackTarget: stream is reporting zero latency, this can't be true" << std::endl;
+//	    cerr << "PortAudioPlaybackTarget: stream is reporting zero latency, this can't be true" << endl;
 	    m_bufferSize = 1024;
  	}
     }
@@ -101,7 +101,7 @@ PortAudioPlaybackTarget::PortAudioPlaybackTarget(ApplicationPlaybackSource *sour
     err = Pa_StartStream(m_stream);
 
     if (err != paNoError) {
-	std::cerr << "ERROR: PortAudioPlaybackTarget: Failed to start PortAudio stream" << std::endl;
+	cerr << "ERROR: PortAudioPlaybackTarget: Failed to start PortAudio stream" << endl;
 	Pa_CloseStream(m_stream);
 	m_stream = 0;
 	Pa_Terminate();
@@ -109,7 +109,7 @@ PortAudioPlaybackTarget::PortAudioPlaybackTarget(ApplicationPlaybackSource *sour
     }
 
     if (m_source) {
-//	std::cerr << "PortAudioPlaybackTarget: block size " << m_bufferSize << std::endl;
+//	cerr << "PortAudioPlaybackTarget: block size " << m_bufferSize << endl;
 	m_source->setSystemPlaybackBlockSize(m_bufferSize);
 	m_source->setSystemPlaybackSampleRate(m_sampleRate);
 	m_source->setSystemPlaybackLatency(m_latency);
@@ -122,7 +122,7 @@ PortAudioPlaybackTarget::~PortAudioPlaybackTarget()
 	PaError err;
 	err = Pa_CloseStream(m_stream);
 	if (err != paNoError) {
-	    std::cerr << "ERROR: PortAudioPlaybackTarget: Failed to close PortAudio stream" << std::endl;
+	    cerr << "ERROR: PortAudioPlaybackTarget: Failed to close PortAudio stream" << endl;
 	}
 	Pa_Terminate();
     }
@@ -159,7 +159,7 @@ PortAudioPlaybackTarget::process(const void *, void *outputBuffer,
                               PaStreamCallbackFlags)
 {
 #ifdef DEBUG_AUDIO_PORT_AUDIO_TARGET    
-    std::cout << "PortAudioPlaybackTarget::process(" << nframes << ")" << std::endl;
+    cout << "PortAudioPlaybackTarget::process(" << nframes << ")" << endl;
 #endif
 
     if (!m_source) return 0;
@@ -167,8 +167,8 @@ PortAudioPlaybackTarget::process(const void *, void *outputBuffer,
     float *output = (float *)outputBuffer;
 
     if (nframes > m_bufferSize) {
-	std::cerr << "PortAudioPlaybackTarget::process: nframes = " << nframes
-   	 	  << " against buffer size " << m_bufferSize << std::endl;
+	cerr << "PortAudioPlaybackTarget::process: nframes = " << nframes
+   	 	  << " against buffer size " << m_bufferSize << endl;
     }
     assert(nframes <= m_bufferSize);
 
@@ -200,8 +200,8 @@ PortAudioPlaybackTarget::process(const void *, void *outputBuffer,
 
     } else {
 
-//        std::cerr << "resampling " << m_source->getApplicationSampleRate() 
-//                  << " -> " << m_sampleRate << std::endl;
+//        cerr << "resampling " << m_source->getApplicationSampleRate() 
+//                  << " -> " << m_sampleRate << endl;
         
         if (m_resampler && m_resampler->getChannelCount() != sourceChannels) {
             delete m_resampler;

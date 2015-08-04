@@ -7,7 +7,7 @@
 #include "ApplicationPlaybackSource.h"
 #include "ApplicationRecordTarget.h"
 
-#include "VectorOps.h"
+#include "bqvec/VectorOps.h"
 
 #include <iostream>
 #include <cassert>
@@ -21,7 +21,7 @@
 
 //#define DEBUG_AUDIO_PORT_AUDIO_IO 1
 
-using namespace breakfastquay;
+using namespace std;
 
 namespace breakfastquay {
 
@@ -50,9 +50,9 @@ enableRT() { // on current thread
     sched_param param;
     param.sched_priority = 20;
     if (pthread_setschedparam(pthread_self(), SCHED_RR, &param)) {
-        std::cerr << "PortAudioIO: NOTE: couldn't set RT scheduling class" << std::endl;
+        cerr << "PortAudioIO: NOTE: couldn't set RT scheduling class" << endl;
     } else {
-        std::cerr << "PortAudioIO: NOTE: successfully set RT scheduling class" << std::endl;
+        cerr << "PortAudioIO: NOTE: successfully set RT scheduling class" << endl;
     }
     return true;
 #endif
@@ -74,7 +74,7 @@ PortAudioIO::PortAudioIO(ApplicationRecordTarget *target,
 
     err = Pa_Initialize();
     if (err != paNoError) {
-	std::cerr << "ERROR: PortAudioIO: Failed to initialize PortAudio" << std::endl;
+	cerr << "ERROR: PortAudioIO: Failed to initialize PortAudio" << endl;
 	return;
     }
 
@@ -111,7 +111,7 @@ PortAudioIO::PortAudioIO(ApplicationRecordTarget *target,
     }
 
     if (err != paNoError) {
-	std::cerr << "ERROR: PortAudioIO: Failed to open PortAudio stream: " << Pa_GetErrorText(err) << std::endl;
+	cerr << "ERROR: PortAudioIO: Failed to open PortAudio stream: " << Pa_GetErrorText(err) << endl;
 	m_stream = 0;
 	Pa_Terminate();
 	return;
@@ -129,14 +129,14 @@ PortAudioIO::PortAudioIO(ApplicationRecordTarget *target,
     err = Pa_StartStream(m_stream);
 
     if (err != paNoError) {
-	std::cerr << "ERROR: PortAudioIO: Failed to start PortAudio stream" << std::endl;
+	cerr << "ERROR: PortAudioIO: Failed to start PortAudio stream" << endl;
 	Pa_CloseStream(m_stream);
 	m_stream = 0;
 	Pa_Terminate();
 	return;
     }
 
-    std::cerr << "PortAudioIO: block size " << m_bufferSize << std::endl;
+    cerr << "PortAudioIO: block size " << m_bufferSize << endl;
 
     if (m_source) {
 	m_source->setSystemPlaybackBlockSize(m_bufferSize);
@@ -157,7 +157,7 @@ PortAudioIO::~PortAudioIO()
 	PaError err;
 	err = Pa_CloseStream(m_stream);
 	if (err != paNoError) {
-	    std::cerr << "ERROR: PortAudioIO: Failed to close PortAudio stream" << std::endl;
+	    cerr << "ERROR: PortAudioIO: Failed to close PortAudio stream" << endl;
 	}
 	Pa_Terminate();
     }
@@ -200,7 +200,7 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
                           PaStreamCallbackFlags)
 {
 #ifdef DEBUG_AUDIO_PORT_AUDIO_IO    
-    std::cout << "PortAudioIO::process(" << nframes << ")" << std::endl;
+    cout << "PortAudioIO::process(" << nframes << ")" << endl;
 #endif
 
     if (!m_prioritySet) {

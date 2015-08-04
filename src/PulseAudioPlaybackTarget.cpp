@@ -6,14 +6,10 @@
 #include "PulseAudioPlaybackTarget.h"
 #include "ApplicationPlaybackSource.h"
 
-#include "VectorOps.h"
-
 #include <iostream>
 #include <cmath>
 
-using std::cerr;
-using std::cout;
-using std::endl;
+using namespace std;
 
 //#define DEBUG_PULSE_AUDIO_PLAYBACK_TARGET 1
 
@@ -21,12 +17,10 @@ namespace breakfastquay {
 
 PulseAudioPlaybackTarget::PulseAudioPlaybackTarget(ApplicationPlaybackSource *source) :
     SystemPlaybackTarget(source),
-    m_mutex(QMutex::Recursive), //!!!???
     m_loop(0),
     m_api(0),
     m_context(0),
     m_out(0),
-    m_loopThread(0),
     m_bufferSize(0),
     m_sampleRate(0),
     m_paChannels(2),
@@ -66,8 +60,7 @@ PulseAudioPlaybackTarget::PulseAudioPlaybackTarget(ApplicationPlaybackSource *so
 
     pa_context_connect(m_context, 0, (pa_context_flags_t)0, 0); // default server
 
-    m_loopThread = new MainLoopThread(m_loop);
-    m_loopThread->start();
+    m_loopthread = thread([this]() { threadRun(); });
 
 #ifdef DEBUG_PULSE_AUDIO_PLAYBACK_TARGET
     cerr << "PulseAudioPlaybackTarget: initialised OK" << endl;
@@ -84,7 +77,7 @@ PulseAudioPlaybackTarget::~PulseAudioPlaybackTarget()
 
     m_done = true;
 
-    QMutexLocker locker(&m_mutex);
+    lock_guard<mutex> guard(m_mutex);
 
     if (m_out) pa_stream_unref(m_out);
 
@@ -137,7 +130,7 @@ PulseAudioPlaybackTarget::streamWrite(int requested)
     // requested is a byte count for an interleaved buffer, so number
     // of frames = requested / (channels * sizeof(float))
 
-    QMutexLocker locker(&m_mutex);
+    lock_guard<mutex> guard(m_mutex);
 
     pa_usec_t latency = 0;
     int negative = 0;
@@ -271,7 +264,7 @@ PulseAudioPlaybackTarget::streamStateChanged(pa_stream *stream)
 
     assert(stream == m_out);
 
-    QMutexLocker locker(&m_mutex);
+    lock_guard<mutex> guard(m_mutex);
 
     switch (pa_stream_get_state(stream)) {
 
@@ -336,7 +329,7 @@ PulseAudioPlaybackTarget::contextStateChanged()
 #ifdef DEBUG_PULSE_AUDIO_PLAYBACK_TARGET
     cerr << "PulseAudioPlaybackTarget::contextStateChanged" << endl;
 #endif
-    QMutexLocker locker(&m_mutex);
+    lock_guard<mutex> guard(m_mutex);
 
     switch (pa_context_get_state(m_context)) {
 

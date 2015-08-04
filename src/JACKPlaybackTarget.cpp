@@ -14,6 +14,8 @@
 
 #include <unistd.h> // getpid
 
+using namespace std;
+
 namespace breakfastquay {
 
 JACKPlaybackTarget::JACKPlaybackTarget(ApplicationPlaybackSource *source) :
