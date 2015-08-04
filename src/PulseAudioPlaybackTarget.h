@@ -42,7 +42,7 @@ protected:
         return int((double(latusec) / 1000000.0) * double(m_sampleRate));
     }
 
-    std::mutex m_mutex;
+    std::recursive_mutex m_mutex;
     std::thread m_loopthread;
 
     virtual void threadRun() {

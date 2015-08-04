@@ -71,13 +71,9 @@ PulseAudioPlaybackTarget::~PulseAudioPlaybackTarget()
 {
     cerr << "PulseAudioPlaybackTarget::~PulseAudioPlaybackTarget()" << endl;
 
-//!!!    if (m_source) {
-//        m_source->setTarget(0, m_bufferSize);
-//    }
-
     m_done = true;
 
-    lock_guard<mutex> guard(m_mutex);
+    lock_guard<recursive_mutex> guard(m_mutex);
 
     if (m_out) pa_stream_unref(m_out);
 
@@ -85,9 +81,11 @@ PulseAudioPlaybackTarget::~PulseAudioPlaybackTarget()
 
     if (m_loop) {
         pa_signal_done();
+        pa_mainloop_quit(m_loop, 0);
+        m_loopthread.join();
         pa_mainloop_free(m_loop);
     }
-
+    
     cerr << "PulseAudioPlaybackTarget::~PulseAudioPlaybackTarget() done" << endl;
 }
 
@@ -128,7 +126,7 @@ PulseAudioPlaybackTarget::streamWrite(int requested)
     // requested is a byte count for an interleaved buffer, so number
     // of frames = requested / (channels * sizeof(float))
 
-    lock_guard<mutex> guard(m_mutex);
+    lock_guard<recursive_mutex> guard(m_mutex);
 
     pa_usec_t latency = 0;
     int negative = 0;
@@ -259,7 +257,7 @@ PulseAudioPlaybackTarget::streamStateChanged(pa_stream *stream)
 
     assert(stream == m_out);
 
-    lock_guard<mutex> guard(m_mutex);
+    lock_guard<recursive_mutex> guard(m_mutex);
 
     switch (pa_stream_get_state(stream)) {
 
@@ -322,7 +320,7 @@ PulseAudioPlaybackTarget::contextStateChanged()
 #ifdef DEBUG_PULSE_AUDIO_PLAYBACK_TARGET
     cerr << "PulseAudioPlaybackTarget::contextStateChanged" << endl;
 #endif
-    lock_guard<mutex> guard(m_mutex);
+    lock_guard<recursive_mutex> guard(m_mutex);
 
     switch (pa_context_get_state(m_context)) {
 

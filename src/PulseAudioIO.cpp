@@ -76,13 +76,9 @@ PulseAudioIO::~PulseAudioIO()
 {
     cerr << "PulseAudioIO::~PulseAudioIO()" << endl;
 
-//!!!    if (m_source) {
-//        m_source->setTarget(0, m_bufferSize);
-//    }
-
     m_done = true;
 
-    lock_guard<mutex> guard(m_mutex);
+    lock_guard<recursive_mutex> guard(m_mutex);
 
     if (m_in) pa_stream_unref(m_in);
     if (m_out) pa_stream_unref(m_out);
@@ -91,6 +87,8 @@ PulseAudioIO::~PulseAudioIO()
 
     if (m_loop) {
         pa_signal_done();
+        pa_mainloop_quit(m_loop, 0);
+        m_loopthread.join();
         pa_mainloop_free(m_loop);
     }
 
@@ -151,7 +149,7 @@ PulseAudioIO::streamWrite(int requested)
 #endif
     if (m_done) return;
 
-    lock_guard<mutex> guard(m_mutex);
+    lock_guard<recursive_mutex> guard(m_mutex);
 
     pa_usec_t latency = 0;
     int negative = 0;
@@ -269,7 +267,7 @@ PulseAudioIO::streamRead(int available)
     cerr << "PulseAudioIO::streamRead(" << available << ")" << endl;
 #endif
 
-    lock_guard<mutex> guard(m_mutex);
+    lock_guard<recursive_mutex> guard(m_mutex);
     
     pa_usec_t latency = 0;
     int negative = 0;
@@ -374,7 +372,7 @@ PulseAudioIO::streamStateChanged(pa_stream *stream)
 
     assert(stream == m_in || stream == m_out);
 
-    lock_guard<mutex> guard(m_mutex);
+    lock_guard<recursive_mutex> guard(m_mutex);
 
     switch (pa_stream_get_state(stream)) {
 
@@ -446,7 +444,7 @@ PulseAudioIO::contextStateChanged()
 #ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
     cerr << "PulseAudioIO::contextStateChanged" << endl;
 #endif
-    lock_guard<mutex> guard(m_mutex);
+    lock_guard<recursive_mutex> guard(m_mutex);
 
     switch (pa_context_get_state(m_context)) {
 
