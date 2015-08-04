@@ -8,6 +8,8 @@
 
 namespace breakfastquay {
 
+class SystemRecordSource;
+
 class ApplicationRecordTarget
 {
 public:
@@ -17,7 +19,7 @@ public:
     
     virtual int getApplicationSampleRate() const { return 0; }
     virtual int getApplicationChannelCount() const = 0; //!!! does this make sense at all? I think the target should have to deal with mismatches in channel count and sample rate
-    
+
     virtual void setSystemRecordBlockSize(int) = 0;
     virtual void setSystemRecordSampleRate(int) = 0;
     virtual void setSystemRecordLatency(int) = 0;

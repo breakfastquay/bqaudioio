@@ -8,6 +8,8 @@
 
 namespace breakfastquay {
 
+class SystemPlaybackTarget;
+
 class ApplicationPlaybackSource
 {
 public:

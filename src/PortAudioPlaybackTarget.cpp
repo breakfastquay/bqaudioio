@@ -13,6 +13,7 @@
 #include <iostream>
 #include <cassert>
 #include <cmath>
+#include <climits>
 
 using namespace std;
 
@@ -28,7 +29,11 @@ PaAlsa_EnableRealtimeScheduling(PaStream *, int);
 #endif
 
 static void
-enableRT(PaStream *stream) {
+enableRT(PaStream *
+#ifdef __LINUX__
+         stream
+#endif
+    ) {
 #ifdef __LINUX__
     // This will link only if the PA ALSA host API is linked statically
     PaAlsa_EnableRealtimeScheduling(stream, 1);
@@ -148,21 +153,24 @@ PortAudioPlaybackTarget::processStatic(const void *input, void *output,
                                     PaStreamCallbackFlags flags, void *data)
 {
     return ((PortAudioPlaybackTarget *)data)->process(input, output,
-                                                   nframes, timeInfo,
-                                                   flags);
+                                                      nframes, timeInfo,
+                                                      flags);
 }
 
 int
 PortAudioPlaybackTarget::process(const void *, void *outputBuffer,
-                              unsigned long nframes,
-                              const PaStreamCallbackTimeInfo *,
-                              PaStreamCallbackFlags)
+                                 unsigned long pa_nframes,
+                                 const PaStreamCallbackTimeInfo *,
+                                 PaStreamCallbackFlags)
 {
 #ifdef DEBUG_AUDIO_PORT_AUDIO_TARGET    
-    cout << "PortAudioPlaybackTarget::process(" << nframes << ")" << endl;
+    cout << "PortAudioPlaybackTarget::process(" << pa_nframes << ")" << endl;
 #endif
 
     if (!m_source) return 0;
+
+    if (pa_nframes > INT_MAX) pa_nframes = 0;
+    int nframes = int(pa_nframes);
 
     float *output = (float *)outputBuffer;
 
@@ -212,8 +220,8 @@ PortAudioPlaybackTarget::process(const void *, void *outputBuffer,
                 (Resampler::FastestTolerable, sourceChannels);
         }
 
-        float ratio = float(m_sampleRate) /
-            float(m_source->getApplicationSampleRate());
+        double ratio = double(m_sampleRate) /
+            double(m_source->getApplicationSampleRate());
 
         if (!resampbuf || resampbufsz != int(tmpbufsz / ratio) + 1) {
             deallocate_channels(resampbuf, resampbufch);
@@ -222,9 +230,9 @@ PortAudioPlaybackTarget::process(const void *, void *outputBuffer,
             resampbuf = allocate_channels<float>(resampbufch, resampbufsz);
         }
 
-        m_source->getSourceSamples(nframes / ratio, resampbuf);
+        m_source->getSourceSamples(int(nframes / ratio), resampbuf);
 
-        m_resampler->resample(resampbuf, tmpbuf, nframes / ratio, ratio);
+        m_resampler->resample(resampbuf, tmpbuf, int(nframes / ratio), ratio);
     }
 
     float peakLeft = 0.0, peakRight = 0.0;

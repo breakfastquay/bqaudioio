@@ -45,6 +45,10 @@ protected:
     static void streamUnderflowStatic(pa_stream *, void *);
     static void contextStateChangedStatic(pa_context *, void *);
 
+    int latencyFrames(pa_usec_t latusec) {
+        return int((double(latusec) / 1000000.0) * double(m_sampleRate));
+    }
+    
     std::mutex m_mutex;
     std::thread m_loopthread;
 

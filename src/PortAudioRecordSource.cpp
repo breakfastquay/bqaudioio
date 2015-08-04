@@ -9,8 +9,9 @@
 #include <iostream>
 #include <cassert>
 #include <cmath>
+#include <climits>
 
-#define DEBUG_AUDIO_PORT_AUDIO_SOURCE 1
+//#define DEBUG_AUDIO_PORT_AUDIO_SOURCE 1
 
 namespace breakfastquay {
 
@@ -22,7 +23,11 @@ PaAlsa_EnableRealtimeScheduling(PaStream *, int);
 #endif
 
 static void
-enableRT(PaStream *stream) {
+enableRT(PaStream *
+#ifdef __LINUX__
+         stream
+#endif
+    ) {
 #ifdef __LINUX__
     // This will link only if the PA ALSA host API is linked statically
     PaAlsa_EnableRealtimeScheduling(stream, 1);
@@ -123,17 +128,20 @@ PortAudioRecordSource::processStatic(const void *input, void *output,
 }
 
 int
-PortAudioRecordSource::process(const void *inputBuffer, void *outputBuffer,
-                              unsigned long nframes,
-                              const PaStreamCallbackTimeInfo *,
-                              PaStreamCallbackFlags)
+PortAudioRecordSource::process(const void *inputBuffer, void *,
+                               unsigned long pa_nframes,
+                               const PaStreamCallbackTimeInfo *,
+                               PaStreamCallbackFlags)
 {
 #ifdef DEBUG_AUDIO_PORT_AUDIO_SOURCE    
-    std::cout << "PortAudioRecordSource::process(" << nframes << ")" << std::endl;
+    std::cout << "PortAudioRecordSource::process(" << pa_nframes << ")" << std::endl;
 #endif
 
     if (!m_target) return 0;
 
+    if (pa_nframes > INT_MAX) pa_nframes = 0;
+    int nframes = int(pa_nframes);
+    
     float *input = (float *)inputBuffer;
 
     assert(nframes <= m_bufferSize);

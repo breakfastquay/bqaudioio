@@ -7,10 +7,13 @@
 #include "ApplicationRecordTarget.h"
 #include "DynamicJACK.h"
 
+#include <bqvec/Range.h>
+
 #include <iostream>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <climits>
 
 #include <unistd.h> // getpid
 
@@ -58,7 +61,7 @@ JACKRecordSource::JACKRecordSource(ApplicationRecordTarget *target) :
 
     int channels = m_target->getApplicationChannelCount();
 
-    while (m_inputs.size() < channels) {
+    while (int(m_inputs.size()) < channels) {
 	
 	char name[20];
 	jack_port_t *port;
@@ -112,12 +115,15 @@ JACKRecordSource::xrunStatic(void *arg)
 }
 
 int
-JACKRecordSource::process(jack_nframes_t nframes)
+JACKRecordSource::process(jack_nframes_t j_nframes)
 {
-    if (m_inputs.size() < m_target->getApplicationChannelCount()) {
+    if (int(m_inputs.size()) < m_target->getApplicationChannelCount()) {
 	return 0;
     }
 
+    if (j_nframes > INT_MAX) j_nframes = 0;
+    int nframes = int(j_nframes);
+    
 #ifdef DEBUG_AUDIO_JACK_SOURCE    
     cout << "JACKRecordSource::process(" << nframes << "), have " << m_inputs.size() << " inputs" << endl;
 #endif
@@ -130,7 +136,7 @@ JACKRecordSource::process(jack_nframes_t nframes)
 
     float **buffers = (float **)alloca(m_inputs.size() * sizeof(float *));
 
-    for (int ch = 0; ch < m_inputs.size(); ++ch) {
+    for (int ch = 0; in_range_for(m_inputs, ch); ++ch) {
 	buffers[ch] = (float *)jack_port_get_buffer(m_inputs[ch], nframes);
     }
 
@@ -140,7 +146,7 @@ JACKRecordSource::process(jack_nframes_t nframes)
 
     float peakLeft = 0.0, peakRight = 0.0;
 
-    for (int ch = 0; ch < m_inputs.size(); ++ch) {
+    for (int ch = 0; in_range_for(m_inputs, ch); ++ch) {
 
 	float peak = 0.0;
 

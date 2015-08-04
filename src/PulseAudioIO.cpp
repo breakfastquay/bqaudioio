@@ -9,6 +9,7 @@
 
 #include <iostream>
 #include <cmath>
+#include <climits>
 
 using namespace std;
 
@@ -51,7 +52,7 @@ PulseAudioIO::PulseAudioIO(ApplicationRecordTarget *target,
 	m_sampleRate = m_source->getApplicationSampleRate();
     }
     m_spec.rate = m_sampleRate;
-    m_spec.channels = m_paChannels;
+    m_spec.channels = (uint8_t)m_paChannels;
     m_spec.format = PA_SAMPLE_FLOAT32NE;
 
     m_context = pa_context_new(m_api, "turbot");
@@ -127,19 +128,19 @@ PulseAudioIO::getCurrentTime() const
     
     pa_usec_t usec = 0;
     pa_stream_get_time(m_out, &usec);
-    return usec / 1000000.f;
+    return double(usec) / 1000000.0;
 }
 
 void
-PulseAudioIO::streamWriteStatic(pa_stream *stream,
+PulseAudioIO::streamWriteStatic(pa_stream *,
                                 size_t length,
                                 void *data)
 {
     PulseAudioIO *target = (PulseAudioIO *)data;
-    
-    assert(stream == target->m_out);
 
-    target->streamWrite(length);
+    if (length > INT_MAX) return;
+    
+    target->streamWrite(int(length));
 }
 
 void
@@ -155,7 +156,7 @@ PulseAudioIO::streamWrite(int requested)
     pa_usec_t latency = 0;
     int negative = 0;
     if (!pa_stream_get_latency(m_out, &latency, &negative)) {
-        int latframes = (latency / 1000000.f) * float(m_sampleRate);
+        int latframes = latencyFrames(latency);
         if (latframes > 0) m_source->setSystemPlaybackLatency(latframes);
     }
 
@@ -169,7 +170,7 @@ PulseAudioIO::streamWrite(int requested)
         return;
     }
 
-    int nframes = requested / (sourceChannels * sizeof(float)); //!!! this should be dividing by how many channels PA thinks it has!
+    int nframes = requested / int(sourceChannels * sizeof(float)); //!!! this should be dividing by how many channels PA thinks it has!
 
     if (nframes > m_bufferSize) {
         cerr << "WARNING: PulseAudioIO::streamWrite: nframes " << nframes << " > m_bufferSize " << m_bufferSize << endl;
@@ -252,15 +253,13 @@ PulseAudioIO::streamWrite(int requested)
 }
 
 void
-PulseAudioIO::streamReadStatic(pa_stream *stream,
+PulseAudioIO::streamReadStatic(pa_stream *,
                                size_t length,
                                void *data)
 {
     PulseAudioIO *target = (PulseAudioIO *)data;
-    
-    assert(stream == target->m_in);
-
-    target->streamRead(length);
+    if (length > INT_MAX) return;
+    target->streamRead(int(length));
 }
 
 void
@@ -275,11 +274,9 @@ PulseAudioIO::streamRead(int available)
     pa_usec_t latency = 0;
     int negative = 0;
     if (!pa_stream_get_latency(m_in, &latency, &negative)) {
-        int latframes = (latency / 1000000.f) * float(m_sampleRate);
+        int latframes = latencyFrames(latency);
         if (latframes > 0) m_target->setSystemRecordLatency(latframes);
     }
-
-    int sz = pa_stream_readable_size(m_in);
 
     static const void *input = 0;
     static float **tmpbuf = 0;
@@ -292,7 +289,7 @@ PulseAudioIO::streamRead(int available)
 
     if (targetChannels < 2) targetChannels = 2;
 
-    int nframes = available / (targetChannels * sizeof(float)); //!!! this should be dividing by how many channels PA thinks it has!
+    int nframes = available / int(targetChannels * sizeof(float)); //!!! this should be dividing by how many channels PA thinks it has!
 
     if (nframes > m_bufferSize) {
         cerr << "WARNING: PulseAudioIO::streamRead: nframes " << nframes << " > m_bufferSize " << m_bufferSize << endl;
@@ -326,7 +323,7 @@ PulseAudioIO::streamRead(int available)
 
     pa_stream_peek(m_in, &input, &actual);
 
-    int actualFrames = actual / (targetChannels * sizeof(float)); //!!! this should be dividing by how many channels PA thinks it has!
+    int actualFrames = int(actual) / int(targetChannels * sizeof(float)); //!!! this should be dividing by how many channels PA thinks it has!
 
     if (actualFrames < nframes) {
         cerr << "WARNING: streamRead: read " << actualFrames << " frames, expected " << nframes << endl;
@@ -381,6 +378,7 @@ PulseAudioIO::streamStateChanged(pa_stream *stream)
 
     switch (pa_stream_get_state(stream)) {
 
+        case PA_STREAM_UNCONNECTED:
         case PA_STREAM_CREATING:
         case PA_STREAM_TERMINATED:
             break;
@@ -398,10 +396,10 @@ PulseAudioIO::streamStateChanged(pa_stream *stream)
             pa_usec_t latency = 0;
             int negative = 0;
             if (pa_stream_get_latency(m_out, &latency, &negative)) {
-                cerr << "PulseAudioIO::contextStateChanged: Failed to query latency" << endl;
+                cerr << "PulseAudioIO::streamStateChanged: Failed to query latency" << endl;
             }
             cerr << "Latency = " << latency << " usec" << endl;
-            int latframes = (latency / 1000000.f) * float(m_sampleRate);
+            int latframes = latencyFrames(latency);
             cerr << "that's " << latframes << " frames" << endl;
 
             const pa_buffer_attr *attr;
@@ -435,13 +433,10 @@ PulseAudioIO::streamStateChanged(pa_stream *stream)
 }
 
 void
-PulseAudioIO::contextStateChangedStatic(pa_context *context,
-                                                 void *data)
+PulseAudioIO::contextStateChangedStatic(pa_context *,
+                                        void *data)
 {
     PulseAudioIO *target = (PulseAudioIO *)data;
-    
-    assert(context == target->m_context);
-
     target->contextStateChanged();
 }
 
@@ -455,6 +450,7 @@ PulseAudioIO::contextStateChanged()
 
     switch (pa_context_get_state(m_context)) {
 
+        case PA_CONTEXT_UNCONNECTED:
         case PA_CONTEXT_CONNECTING:
         case PA_CONTEXT_AUTHORIZING:
         case PA_CONTEXT_SETTING_NAME:

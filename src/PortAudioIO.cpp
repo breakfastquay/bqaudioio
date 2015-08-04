@@ -12,6 +12,7 @@
 #include <iostream>
 #include <cassert>
 #include <cmath>
+#include <climits>
 
 #ifndef __LINUX__
 #ifndef _WIN32
@@ -33,7 +34,11 @@ PaAlsa_EnableRealtimeScheduling(PaStream *, int);
 #endif
 
 static bool // true if "can attempt on this platform", not "succeeded"
-enableRT(PaStream *stream) {
+enableRT(PaStream *
+#ifdef __LINUX__
+         stream
+#endif
+    ) {
 #ifdef __LINUX__
     // This will link only if the PA ALSA host API is linked statically
     PaAlsa_EnableRealtimeScheduling(stream, 1);
@@ -195,12 +200,12 @@ PortAudioIO::processStatic(const void *input, void *output,
 
 int
 PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
-                          unsigned long nframes,
+                          unsigned long pa_nframes,
                           const PaStreamCallbackTimeInfo *,
                           PaStreamCallbackFlags)
 {
 #ifdef DEBUG_AUDIO_PORT_AUDIO_IO    
-    cout << "PortAudioIO::process(" << nframes << ")" << endl;
+    cout << "PortAudioIO::process(" << pa_nframes << ")" << endl;
 #endif
 
     if (!m_prioritySet) {
@@ -210,6 +215,9 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
 
     if (!m_source && !m_target) return 0;
 
+    if (pa_nframes > INT_MAX) pa_nframes = 0;
+    int nframes = int(pa_nframes);
+    
     float *input = (float *)inputBuffer;
     float *output = (float *)outputBuffer;
 

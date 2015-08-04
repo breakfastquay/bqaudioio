@@ -8,10 +8,13 @@
 #include "ApplicationPlaybackSource.h"
 #include "ApplicationRecordTarget.h"
 
+#include <bqvec/Range.h>
+
 #include <iostream>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <climits>
 
 #include <unistd.h> // getpid
 
@@ -117,7 +120,7 @@ JACKAudioIO::setup(int channels)
         }
     }
 
-    if (channels == m_outputs.size() || !m_client) {
+    if (channels == int(m_outputs.size()) || !m_client) {
 	return;
     }
 
@@ -140,7 +143,7 @@ JACKAudioIO::setup(int channels)
 
     if (m_source) {
 
-        while (m_outputs.size() < channels) {
+        while (int(m_outputs.size()) < channels) {
 	
             char name[20];
             jack_port_t *port;
@@ -163,7 +166,7 @@ JACKAudioIO::setup(int channels)
                 m_source->setSystemPlaybackLatency(range.max);
             }
 
-            if (m_outputs.size() < playPortCount) {
+            if (int(m_outputs.size()) < playPortCount) {
                 jack_connect(m_client,
                              jack_port_name(port),
                              playPorts[m_outputs.size()]);
@@ -175,7 +178,7 @@ JACKAudioIO::setup(int channels)
 
     if (m_target) {
 
-        while (m_inputs.size() < channels) {
+        while (int(m_inputs.size()) < channels) {
 	
             char name[20];
             jack_port_t *port;
@@ -198,7 +201,7 @@ JACKAudioIO::setup(int channels)
                 m_target->setSystemRecordLatency(range.max);
             }
 
-            if (m_inputs.size() < capPortCount) {
+            if (int(m_inputs.size()) < capPortCount) {
                 jack_connect(m_client,
                              capPorts[m_inputs.size()],
                              jack_port_name(port));
@@ -208,7 +211,7 @@ JACKAudioIO::setup(int channels)
         }
     }
 
-    while (m_outputs.size() > channels) {
+    while (int(m_outputs.size()) > channels) {
 	vector<jack_port_t *>::iterator itr = m_outputs.end();
 	--itr;
 	jack_port_t *port = *itr;
@@ -216,7 +219,7 @@ JACKAudioIO::setup(int channels)
 	m_outputs.erase(itr);
     }
 
-    while (m_inputs.size() > channels) {
+    while (int(m_inputs.size()) > channels) {
 	vector<jack_port_t *>::iterator itr = m_inputs.end();
 	--itr;
 	jack_port_t *port = *itr;
@@ -226,13 +229,16 @@ JACKAudioIO::setup(int channels)
 }
 
 int
-JACKAudioIO::process(jack_nframes_t nframes)
+JACKAudioIO::process(jack_nframes_t j_nframes)
 {
     if (!m_mutex.try_lock()) {
 	return 0;
     }
 
     lock_guard<mutex> guard(m_mutex, adopt_lock);
+
+    if (j_nframes > INT_MAX) j_nframes = 0;
+    int nframes = int(j_nframes);
     
     if (m_outputs.empty() && m_inputs.empty()) {
 	return 0;
@@ -255,7 +261,7 @@ JACKAudioIO::process(jack_nframes_t nframes)
 
     if (m_source) {
 
-        for (int ch = 0; ch < m_outputs.size(); ++ch) {
+        for (int ch = 0; in_range_for(m_outputs, ch); ++ch) {
             outbufs[ch] = (float *)jack_port_get_buffer(m_outputs[ch], nframes);
         }
         
@@ -265,7 +271,7 @@ JACKAudioIO::process(jack_nframes_t nframes)
 
         //!!! vectorisation
 
-        for (int ch = 0; ch < m_outputs.size(); ++ch) {
+        for (int ch = 0; in_range_for(m_outputs, ch); ++ch) {
 
             float peak = 0.0;
 
@@ -282,7 +288,7 @@ JACKAudioIO::process(jack_nframes_t nframes)
         m_source->setOutputLevels(peakLeft, peakRight);
 
     } else {
-	for (int ch = 0; ch < m_outputs.size(); ++ch) {
+	for (int ch = 0; in_range_for(m_outputs, ch); ++ch) {
 	    for (int i = 0; i < nframes; ++i) {
 		outbufs[ch][i] = 0.0;
 	    }
@@ -291,13 +297,13 @@ JACKAudioIO::process(jack_nframes_t nframes)
 
     if (m_target) {
 
-        for (int ch = 0; ch < m_inputs.size(); ++ch) {
+        for (int ch = 0; in_range_for(m_inputs, ch); ++ch) {
             inbufs[ch] = (float *)jack_port_get_buffer(m_inputs[ch], nframes);
         }
 
         peakLeft = 0.0; peakRight = 0.0;
 
-        for (int ch = 0; ch < m_inputs.size(); ++ch) {
+        for (int ch = 0; in_range_for(m_inputs, ch); ++ch) {
 
             float peak = 0.0;
 
@@ -312,14 +318,6 @@ JACKAudioIO::process(jack_nframes_t nframes)
         
 	m_target->setInputLevels(peakLeft, peakRight);
         m_target->putSamples(nframes, inbufs);
-
-        /*!!!
-        for (int ch = 0; ch < m_inputs.size(); ++ch) {
-            for (int i = 0; i < nframes; ++i) {
-                outbufs[ch][i] = inbufs[ch][i];
-            }
-        }
-        */
     }
 
     return 0;

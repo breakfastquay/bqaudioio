@@ -47,7 +47,7 @@ PulseAudioPlaybackTarget::PulseAudioPlaybackTarget(ApplicationPlaybackSource *so
 	m_sampleRate = m_source->getApplicationSampleRate();
     }
     m_spec.rate = m_sampleRate;
-    m_spec.channels = m_paChannels;
+    m_spec.channels = (uint8_t)m_paChannels;
     m_spec.format = PA_SAMPLE_FLOAT32NE;
 
     m_context = pa_context_new(m_api, "turbot");
@@ -104,19 +104,17 @@ PulseAudioPlaybackTarget::getCurrentTime() const
     
     pa_usec_t usec = 0;
     pa_stream_get_time(m_out, &usec);
-    return usec / 1000000.f;
+    return double(usec) / 1000000.f;
 }
 
 void
-PulseAudioPlaybackTarget::streamWriteStatic(pa_stream *stream,
+PulseAudioPlaybackTarget::streamWriteStatic(pa_stream *,
                                             size_t length,
                                             void *data)
 {
     PulseAudioPlaybackTarget *target = (PulseAudioPlaybackTarget *)data;
-    
-    assert(stream == target->m_out);
-
-    target->streamWrite(length);
+    if (length > INT_MAX) return;
+    target->streamWrite(int(length));
 }
 
 void
@@ -135,7 +133,7 @@ PulseAudioPlaybackTarget::streamWrite(int requested)
     pa_usec_t latency = 0;
     int negative = 0;
     if (!pa_stream_get_latency(m_out, &latency, &negative)) {
-        int latframes = (latency / 1000000.f) * float(m_sampleRate);
+        int latframes = latencyFrames(latency);
         if (latframes > 0) m_source->setSystemPlaybackLatency(latframes);
     }
 
@@ -149,7 +147,7 @@ PulseAudioPlaybackTarget::streamWrite(int requested)
         //!!! but this is incredibly cpu-intensive and poor for
         //!!! battery life, because it happens all the time when not
         //!!! playing. should pause and resume the stream somehow
-        int samples = requested / sizeof(float);
+        int samples = int(requested / sizeof(float));
         output = new float[samples];
         for (int i = 0; i < samples; ++i) {
             output[i] = 0.f;
@@ -160,7 +158,7 @@ PulseAudioPlaybackTarget::streamWrite(int requested)
         return;
     }
 
-    int nframes = requested / (sourceChannels * sizeof(float)); //!!! this should be dividing by how many channels PA thinks it has!
+    int nframes = int(requested / (sourceChannels * sizeof(float))); //!!! this should be dividing by how many channels PA thinks it has!
 
     if (nframes > m_bufferSize) {
         cerr << "WARNING: PulseAudioPlaybackTarget::streamWrite: nframes " << nframes << " > m_bufferSize " << m_bufferSize << endl;
@@ -246,12 +244,9 @@ PulseAudioPlaybackTarget::streamWrite(int requested)
 
 void
 PulseAudioPlaybackTarget::streamStateChangedStatic(pa_stream *stream,
-                                            void *data)
+                                                   void *data)
 {
     PulseAudioPlaybackTarget *target = (PulseAudioPlaybackTarget *)data;
-    
-    assert(stream == target->m_out);
-
     target->streamStateChanged(stream);
 }
 
@@ -268,6 +263,7 @@ PulseAudioPlaybackTarget::streamStateChanged(pa_stream *stream)
 
     switch (pa_stream_get_state(stream)) {
 
+        case PA_STREAM_UNCONNECTED:
         case PA_STREAM_CREATING:
         case PA_STREAM_TERMINATED:
             break;
@@ -279,10 +275,10 @@ PulseAudioPlaybackTarget::streamStateChanged(pa_stream *stream)
             pa_usec_t latency = 0;
             int negative = 0;
             if (pa_stream_get_latency(m_out, &latency, &negative)) {
-                cerr << "PulseAudioPlaybackTarget::contextStateChanged: Failed to query latency" << endl;
+                cerr << "PulseAudioPlaybackTarget::streamStateChanged: Failed to query latency" << endl;
             }
             cerr << "Latency = " << latency << " usec" << endl;
-            int latframes = (latency / 1000000.f) * float(m_sampleRate);
+            int latframes = latencyFrames(latency);
             cerr << "that's " << latframes << " frames" << endl;
 
             const pa_buffer_attr *attr;
@@ -313,13 +309,10 @@ PulseAudioPlaybackTarget::streamStateChanged(pa_stream *stream)
 }
 
 void
-PulseAudioPlaybackTarget::contextStateChangedStatic(pa_context *context,
-                                                 void *data)
+PulseAudioPlaybackTarget::contextStateChangedStatic(pa_context *,
+                                                    void *data)
 {
     PulseAudioPlaybackTarget *target = (PulseAudioPlaybackTarget *)data;
-    
-    assert(context == target->m_context);
-
     target->contextStateChanged();
 }
 
@@ -333,6 +326,7 @@ PulseAudioPlaybackTarget::contextStateChanged()
 
     switch (pa_context_get_state(m_context)) {
 
+        case PA_CONTEXT_UNCONNECTED:
         case PA_CONTEXT_CONNECTING:
         case PA_CONTEXT_AUTHORIZING:
         case PA_CONTEXT_SETTING_NAME:

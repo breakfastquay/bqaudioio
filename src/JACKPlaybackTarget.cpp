@@ -7,10 +7,13 @@
 #include "DynamicJACK.h"
 #include "ApplicationPlaybackSource.h"
 
+#include <bqvec/Range.h>
+
 #include <iostream>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <climits>
 
 #include <unistd.h> // getpid
 
@@ -91,7 +94,7 @@ JACKPlaybackTarget::setup(int channels)
     m_source->setSystemPlaybackBlockSize(m_bufferSize);
     m_source->setSystemPlaybackSampleRate(m_sampleRate);
 
-    if (channels == m_outputs.size() || !m_client) {
+    if (channels == int(m_outputs.size()) || !m_client) {
 	return;
     }
 
@@ -105,7 +108,7 @@ JACKPlaybackTarget::setup(int channels)
     cerr << "JACKPlaybackTarget::sourceModelReplaced: have " << channels << " channels and " << physicalPortCount << " physical ports" << endl;
 #endif
 
-    while (m_outputs.size() < channels) {
+    while (int(m_outputs.size()) < channels) {
 	
 	char name[20];
 	jack_port_t *port;
@@ -128,14 +131,14 @@ JACKPlaybackTarget::setup(int channels)
             m_source->setSystemPlaybackLatency(range.max);
 	}
 
-	if (m_outputs.size() < physicalPortCount) {
+	if (int(m_outputs.size()) < physicalPortCount) {
 	    jack_connect(m_client, jack_port_name(port), ports[m_outputs.size()]);
 	}
 
 	m_outputs.push_back(port);
     }
 
-    while (m_outputs.size() > channels) {
+    while (int(m_outputs.size()) > channels) {
 	vector<jack_port_t *>::iterator itr = m_outputs.end();
 	--itr;
 	jack_port_t *port = *itr;
@@ -145,13 +148,16 @@ JACKPlaybackTarget::setup(int channels)
 }
 
 int
-JACKPlaybackTarget::process(jack_nframes_t nframes)
+JACKPlaybackTarget::process(jack_nframes_t j_nframes)
 {
     if (!m_mutex.try_lock()) {
 	return 0;
     }
 
     lock_guard<mutex> guard(m_mutex, adopt_lock);
+
+    if (j_nframes > INT_MAX) j_nframes = 0;
+    int nframes = int(j_nframes);
     
     if (m_outputs.empty()) {
 	return 0;
@@ -169,14 +175,14 @@ JACKPlaybackTarget::process(jack_nframes_t nframes)
 
     float **buffers = (float **)alloca(m_outputs.size() * sizeof(float *));
 
-    for (int ch = 0; ch < m_outputs.size(); ++ch) {
+    for (int ch = 0; in_range_for(m_outputs, ch); ++ch) {
 	buffers[ch] = (float *)jack_port_get_buffer(m_outputs[ch], nframes);
     }
 
     if (m_source) {
 	m_source->getSourceSamples(nframes, buffers);
     } else {
-	for (int ch = 0; ch < m_outputs.size(); ++ch) {
+	for (int ch = 0; in_range_for(m_outputs, ch); ++ch) {
 	    for (int i = 0; i < nframes; ++i) {
 		buffers[ch][i] = 0.0;
 	    }
@@ -185,7 +191,7 @@ JACKPlaybackTarget::process(jack_nframes_t nframes)
 
     float peakLeft = 0.0, peakRight = 0.0;
 
-    for (int ch = 0; ch < m_outputs.size(); ++ch) {
+    for (int ch = 0; in_range_for(m_outputs, ch); ++ch) {
 
 	float peak = 0.0;
 
