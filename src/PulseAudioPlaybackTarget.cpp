@@ -11,7 +11,7 @@
 
 using namespace std;
 
-//#define DEBUG_PULSE_AUDIO_PLAYBACK_TARGET 1
+#define DEBUG_PULSE_AUDIO_PLAYBACK_TARGET 1
 
 namespace breakfastquay {
 
@@ -192,7 +192,9 @@ PulseAudioPlaybackTarget::streamWrite(int requested)
 	
     int received = m_source->getSourceSamples(nframes, tmpbuf);
 
-//    cout << "received = " << received << endl;
+#ifdef DEBUG_PULSE_AUDIO_PLAYBACK_TARGET
+    cerr << "received = " << received << endl;
+#endif
     
     float peakLeft = 0.0, peakRight = 0.0;
 
@@ -292,14 +294,12 @@ PulseAudioPlaybackTarget::streamStateChanged(pa_stream *stream)
             const pa_buffer_attr *attr;
             if (!(attr = pa_stream_get_buffer_attr(m_out))) {
                 cerr << "PulseAudioPlaybackTarget::streamStateChanged: Cannot query stream buffer attributes" << endl;
-                m_source->setSystemPlaybackBlockSize(4096);
                 m_source->setSystemPlaybackSampleRate(m_sampleRate);
                 m_source->setSystemPlaybackLatency(latframes);
             } else {
                 cerr << "PulseAudioPlaybackTarget::streamStateChanged: stream max length = " << attr->maxlength << endl;
                 int latency = attr->tlength;
                 cerr << "latency = " << latency << endl;
-                m_source->setSystemPlaybackBlockSize(attr->maxlength);
                 m_source->setSystemPlaybackSampleRate(m_sampleRate);
                 m_source->setSystemPlaybackLatency(latframes);
             }

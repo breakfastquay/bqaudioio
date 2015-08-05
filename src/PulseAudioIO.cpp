@@ -411,14 +411,12 @@ PulseAudioIO::streamStateChanged(pa_stream *stream)
             const pa_buffer_attr *attr;
             if (!(attr = pa_stream_get_buffer_attr(m_out))) {
                 cerr << "PulseAudioIO::streamStateChanged: Cannot query stream buffer attributes" << endl;
-                m_source->setSystemPlaybackBlockSize(4096);
                 m_source->setSystemPlaybackSampleRate(m_sampleRate);
                 m_source->setSystemPlaybackLatency(latframes);
             } else {
                 cerr << "PulseAudioIO::streamStateChanged: stream max length = " << attr->maxlength << endl;
                 int latency = attr->tlength;
                 cerr << "latency = " << latency << endl;
-                m_source->setSystemPlaybackBlockSize(attr->maxlength);
                 m_source->setSystemPlaybackSampleRate(m_sampleRate);
                 m_source->setSystemPlaybackLatency(latframes);
             }
