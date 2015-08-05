@@ -259,8 +259,13 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
 
     if (m_source) {
 
-        m_source->getSourceSamples(nframes, tmpbuf);
-    
+        int received = m_source->getSourceSamples(nframes, tmpbuf);
+        for (int c = 0; c < sourceChannels; ++c) {
+            for (int i = received; i < nframes; ++i) {
+                tmpbuf[c][i] = 0.f;
+            }
+        }
+        
         peakLeft = 0.0, peakRight = 0.0;
 
         for (int ch = 0; ch < 2; ++ch) {

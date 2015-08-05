@@ -24,7 +24,7 @@ public:
     virtual void setSystemPlaybackSampleRate(int) = 0;
     virtual void setSystemPlaybackLatency(int) = 0;
 
-    virtual void getSourceSamples(int nframes, float **samples) = 0;
+    virtual int getSourceSamples(int nframes, float **samples) = 0;
     
     virtual void setOutputLevels(float peakLeft, float peakRight) = 0;
 

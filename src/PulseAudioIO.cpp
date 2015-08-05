@@ -202,7 +202,7 @@ PulseAudioIO::streamWrite(int requested)
         output = new float[tmpbufsz * m_paChannels];
     }
 	
-    m_source->getSourceSamples(nframes, tmpbuf);
+    int received = m_source->getSourceSamples(nframes, tmpbuf);
 
     float peakLeft = 0.0, peakRight = 0.0;
 
@@ -214,17 +214,25 @@ PulseAudioIO::streamWrite(int requested)
 
 	    // PulseAudio samples are interleaved
 	    for (int i = 0; i < nframes; ++i) {
-                output[i * m_paChannels + ch] = tmpbuf[ch][i] * m_outputGain;
-                float sample = fabsf(output[i * m_paChannels + ch]);
-                if (sample > peak) peak = sample;
+                if (i < received) {
+                    output[i * m_paChannels + ch] = tmpbuf[ch][i] * m_outputGain;
+                    float sample = fabsf(output[i * m_paChannels + ch]);
+                    if (sample > peak) peak = sample;
+                } else {
+                    output[i * m_paChannels + ch] = 0.f;
+                }
 	    }
 
 	} else if (ch == 1 && sourceChannels == 1) {
 
 	    for (int i = 0; i < nframes; ++i) {
-                output[i * m_paChannels + ch] = tmpbuf[0][i] * m_outputGain;
-                float sample = fabsf(output[i * m_paChannels + ch]);
-                if (sample > peak) peak = sample;
+                if (i < received) {
+                    output[i * m_paChannels + ch] = tmpbuf[0][i] * m_outputGain;
+                    float sample = fabsf(output[i * m_paChannels + ch]);
+                    if (sample > peak) peak = sample;
+                } else {
+                    output[i * m_paChannels + ch] = 0.f;
+                }
 	    }
 
 	} else {

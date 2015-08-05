@@ -179,13 +179,15 @@ JACKPlaybackTarget::process(jack_nframes_t j_nframes)
 	buffers[ch] = (float *)jack_port_get_buffer(m_outputs[ch], nframes);
     }
 
+    int received = 0;
+
     if (m_source) {
-	m_source->getSourceSamples(nframes, buffers);
-    } else {
-	for (int ch = 0; in_range_for(m_outputs, ch); ++ch) {
-	    for (int i = 0; i < nframes; ++i) {
-		buffers[ch][i] = 0.0;
-	    }
+	received = m_source->getSourceSamples(nframes, buffers);
+    }
+    
+    for (int ch = 0; in_range_for(m_outputs, ch); ++ch) {
+        for (int i = received; i < nframes; ++i) {
+            buffers[ch][i] = 0.0;
 	}
     }
 

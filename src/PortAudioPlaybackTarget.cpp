@@ -204,7 +204,12 @@ PortAudioPlaybackTarget::process(const void *, void *outputBuffer,
     if (m_source->getApplicationSampleRate() == 0 ||
         m_source->getApplicationSampleRate() == m_sampleRate) {
 	
-        m_source->getSourceSamples(nframes, tmpbuf);
+        int received = m_source->getSourceSamples(nframes, tmpbuf);
+        for (int c = 0; c < sourceChannels; ++c) {
+            for (int i = received; i < nframes; ++i) {
+                tmpbuf[c][i] = 0.f;
+            }
+        }
 
     } else {
 
@@ -230,7 +235,12 @@ PortAudioPlaybackTarget::process(const void *, void *outputBuffer,
             resampbuf = allocate_channels<float>(resampbufch, resampbufsz);
         }
 
-        m_source->getSourceSamples(int(nframes / ratio), resampbuf);
+        int received = m_source->getSourceSamples(int(nframes / ratio), resampbuf);
+        for (int c = 0; c < sourceChannels; ++c) {
+            for (int i = received; i < int(nframes / ratio); ++i) {
+                resampbuf[c][i] = 0.f;
+            }
+        }
 
         m_resampler->resample(resampbuf, tmpbuf, int(nframes / ratio), ratio);
     }

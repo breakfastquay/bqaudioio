@@ -265,7 +265,7 @@ JACKAudioIO::process(jack_nframes_t j_nframes)
             outbufs[ch] = (float *)jack_port_get_buffer(m_outputs[ch], nframes);
         }
         
-	m_source->getSourceSamples(nframes, outbufs);
+	int received = m_source->getSourceSamples(nframes, outbufs);
 
         peakLeft = 0.0; peakRight = 0.0;
 
@@ -275,6 +275,10 @@ JACKAudioIO::process(jack_nframes_t j_nframes)
 
             float peak = 0.0;
 
+            for (int i = received; i < nframes; ++i) {
+                outbufs[ch][i] = 0.0;
+            }
+        
             for (int i = 0; i < nframes; ++i) {
                 outbufs[ch][i] *= m_outputGain;
                 float sample = fabsf(outbufs[ch][i]);
