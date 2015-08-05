@@ -11,7 +11,7 @@
 
 using namespace std;
 
-#define DEBUG_PULSE_AUDIO_PLAYBACK_TARGET 1
+//#define DEBUG_PULSE_AUDIO_PLAYBACK_TARGET 1
 
 namespace breakfastquay {
 
