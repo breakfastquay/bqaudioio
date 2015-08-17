@@ -18,7 +18,7 @@ public:
     static SystemRecordSource *createCallbackRecordSource(ApplicationRecordTarget *);
     static SystemPlaybackTarget *createCallbackPlayTarget(ApplicationPlaybackSource *);
     static SystemAudioIO *createCallbackIO(ApplicationRecordTarget *,
-                                             ApplicationPlaybackSource *);
+                                           ApplicationPlaybackSource *);
 };
 
 }

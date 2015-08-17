@@ -36,6 +36,8 @@ PulseAudioIO::PulseAudioIO(ApplicationRecordTarget *target,
     cerr << "PulseAudioIO: Initialising for PulseAudio" << endl;
 #endif
 
+    m_name = source->getClientName();
+
     m_loop = pa_mainloop_new();
     if (!m_loop) {
         cerr << "ERROR: PulseAudioIO: Failed to create main loop" << endl;
@@ -55,7 +57,7 @@ PulseAudioIO::PulseAudioIO(ApplicationRecordTarget *target,
     m_spec.channels = (uint8_t)m_paChannels;
     m_spec.format = PA_SAMPLE_FLOAT32NE;
 
-    m_context = pa_context_new(m_api, "turbot");
+    m_context = pa_context_new(m_api, m_name.c_str());
     if (!m_context) {
         cerr << "ERROR: PulseAudioIO: Failed to create context object" << endl;
         return;
@@ -465,7 +467,7 @@ PulseAudioIO::contextStateChanged()
             cerr << "PulseAudioIO::contextStateChanged: Ready"
                       << endl;
 
-            m_in = pa_stream_new(m_context, "Turbot capture", &m_spec, 0);
+            m_in = pa_stream_new(m_context, "Capture", &m_spec, 0);
             assert(m_in); //!!!
             
             pa_stream_set_state_callback(m_in, streamStateChangedStatic, this);
@@ -480,7 +482,7 @@ PulseAudioIO::contextStateChanged()
                 cerr << "PulseAudioIO: Failed to connect record stream" << endl;
             }
 
-            m_out = pa_stream_new(m_context, "Turbot playback", &m_spec, 0);
+            m_out = pa_stream_new(m_context, "Playback", &m_spec, 0);
             assert(m_out); //!!!
             
             pa_stream_set_state_callback(m_out, streamStateChangedStatic, this);

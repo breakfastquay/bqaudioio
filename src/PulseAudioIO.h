@@ -57,6 +57,8 @@ protected:
         pa_mainloop_run(m_loop, &rv); //!!! check return value from this, and rv
     }
 
+    std::string m_name;
+    
     pa_mainloop *m_loop;
     pa_mainloop_api *m_api;
     pa_context *m_context;
