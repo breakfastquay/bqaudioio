@@ -1,8 +1,8 @@
 /* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
 /* Copyright Chris Cannam - All Rights Reserved */
 
-#ifndef BQAUDIOIO_APPLICATION_PLAY_SOURCE_H
-#define BQAUDIOIO_APPLICATION_PLAY_SOURCE_H
+#ifndef BQAUDIOIO_APPLICATION_PLAYBACK_SOURCE_H
+#define BQAUDIOIO_APPLICATION_PLAYBACK_SOURCE_H
 
 #include <string>
 
@@ -32,5 +32,6 @@ public:
 };
 
 }
+
 #endif
     

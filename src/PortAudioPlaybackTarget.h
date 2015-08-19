@@ -1,8 +1,8 @@
 /* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
 /* Copyright Chris Cannam - All Rights Reserved */
 
-#ifndef _AUDIO_PORT_AUDIO_TARGET_H_
-#define _AUDIO_PORT_AUDIO_TARGET_H_
+#ifndef PORTAUDIO_PLAYBACK_TARGET_H
+#define PORTAUDIO_PLAYBACK_TARGET_H
 
 #ifdef HAVE_PORTAUDIO
 

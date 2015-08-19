@@ -31,5 +31,7 @@ src/AudioFactory.o: src/PortAudioPlaybackTarget.h src/JACKRecordSource.h
 src/AudioFactory.o: src/PortAudioRecordSource.h src/JACKAudioIO.h
 src/AudioFactory.o: src/PortAudioIO.h src/PulseAudioIO.h
 src/SystemPlaybackTarget.o: ./bqaudioio/SystemPlaybackTarget.h
+src/ResamplerWrapper.o: src/ResamplerWrapper.h
+src/ResamplerWrapper.o: ./bqaudioio/ApplicationPlaybackSource.h
 bqaudioio/SystemAudioIO.o: ./bqaudioio/SystemRecordSource.h
 bqaudioio/SystemAudioIO.o: ./bqaudioio/SystemPlaybackTarget.h
