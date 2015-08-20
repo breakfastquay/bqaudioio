@@ -1,2 +1,7 @@
 
+This library is a work-in-progress, taking code used in other bq
+software & wrapping it for reuse under a liberal licence. I don't
+advise using it yet unless you happen to be its author.
+
 Note C++11 (uses std::mutex)
+
