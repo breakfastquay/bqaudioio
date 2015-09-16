@@ -30,6 +30,9 @@ public:
     virtual bool isTargetOK() const;
     virtual bool isTargetReady() const;
 
+    virtual void suspend();
+    virtual void resume();
+
     virtual double getCurrentTime() const;
 
 protected:
@@ -73,6 +76,8 @@ protected:
 
     bool m_captureReady;
     bool m_playbackReady;
+
+    bool m_suspended;
 };
 
 }

@@ -13,7 +13,7 @@
 
 using namespace std;
 
-//#define DEBUG_AUDIO_PULSE_AUDIO_IO 1
+#define DEBUG_AUDIO_PULSE_AUDIO_IO 1
 
 namespace breakfastquay {
 
@@ -30,7 +30,8 @@ PulseAudioIO::PulseAudioIO(ApplicationRecordTarget *target,
     m_paChannels(2),
     m_done(false),
     m_captureReady(false),
-    m_playbackReady(false)
+    m_playbackReady(false),
+    m_suspended(false)
 {
 #ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
     cerr << "PulseAudioIO: Initialising for PulseAudio" << endl;
@@ -82,16 +83,21 @@ PulseAudioIO::~PulseAudioIO()
 
     lock_guard<recursive_mutex> guard(m_mutex);
 
-    if (m_in) pa_stream_unref(m_in);
-    if (m_out) pa_stream_unref(m_out);
-
-    if (m_context) pa_context_unref(m_context);
-
     if (m_loop) {
         pa_signal_done();
         pa_mainloop_quit(m_loop, 0);
         m_loopthread.join();
         pa_mainloop_free(m_loop);
+    }
+
+    if (m_in) {
+        pa_stream_unref(m_in);
+    }
+    if (m_out) {
+        pa_stream_unref(m_out);
+    }
+    if (m_context) {
+        pa_context_unref(m_context);
     }
 
     cerr << "PulseAudioIO::~PulseAudioIO() done" << endl;
@@ -447,6 +453,52 @@ PulseAudioIO::contextStateChangedStatic(pa_context *,
 }
 
 void
+PulseAudioIO::suspend()
+{
+    lock_guard<recursive_mutex> guard(m_mutex);
+
+    if (m_suspended) return;
+
+    if (m_in) {
+        pa_stream_cork(m_in, 1, 0, 0);
+        pa_stream_flush(m_in, 0, 0);
+    }
+
+    if (m_out) {
+        pa_stream_cork(m_out, 1, 0, 0);
+        pa_stream_flush(m_out, 0, 0);
+    }
+
+    m_suspended = true;
+    
+#ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
+    cerr << "corked!" << endl;
+#endif
+}
+
+void
+PulseAudioIO::resume()
+{
+    lock_guard<recursive_mutex> guard(m_mutex);
+
+    if (!m_suspended) return;
+
+    if (m_in) {
+        pa_stream_cork(m_in, 0, 0, 0);
+    }
+
+    if (m_out) {
+        pa_stream_cork(m_out, 0, 0, 0);
+    }
+
+    m_suspended = false;
+    
+#ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
+    cerr << "uncorked!" << endl;
+#endif
+}
+
+void
 PulseAudioIO::contextStateChanged()
 {
 #ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
@@ -475,10 +527,15 @@ PulseAudioIO::contextStateChanged()
             pa_stream_set_overflow_callback(m_in, streamOverflowStatic, this);
             pa_stream_set_underflow_callback(m_in, streamUnderflowStatic, this);
 
-            if (pa_stream_connect_record
-                (m_in, 0, 0,
-                 pa_stream_flags_t(PA_STREAM_INTERPOLATE_TIMING |
-                                   PA_STREAM_AUTO_TIMING_UPDATE))) { //??? return value
+            pa_stream_flags_t flags;
+
+            flags = pa_stream_flags_t(PA_STREAM_INTERPOLATE_TIMING |
+                                      PA_STREAM_AUTO_TIMING_UPDATE);
+            if (m_suspended) {
+                flags = pa_stream_flags_t(flags | PA_STREAM_START_CORKED);
+            }
+            
+            if (pa_stream_connect_record (m_in, 0, 0, flags)) {
                 cerr << "PulseAudioIO: Failed to connect record stream" << endl;
             }
 
@@ -490,11 +547,13 @@ PulseAudioIO::contextStateChanged()
             pa_stream_set_overflow_callback(m_out, streamOverflowStatic, this);
             pa_stream_set_underflow_callback(m_out, streamUnderflowStatic, this);
 
-            if (pa_stream_connect_playback
-                (m_out, 0, 0,
-                 pa_stream_flags_t(PA_STREAM_INTERPOLATE_TIMING |
-                                   PA_STREAM_AUTO_TIMING_UPDATE),
-                 0, 0)) { //??? return value
+            flags = pa_stream_flags_t(PA_STREAM_INTERPOLATE_TIMING |
+                                      PA_STREAM_AUTO_TIMING_UPDATE);
+            if (m_suspended) {
+                flags = pa_stream_flags_t(flags | PA_STREAM_START_CORKED);
+            }
+
+            if (pa_stream_connect_playback(m_out, 0, 0, flags, 0, 0)) { 
                 cerr << "PulseAudioIO: Failed to connect playback stream" << endl;
             }
 

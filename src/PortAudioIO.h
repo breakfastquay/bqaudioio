@@ -25,6 +25,9 @@ public:
     virtual bool isSourceOK() const;
     virtual bool isTargetOK() const;
 
+    virtual void suspend() {} //!!! todo!
+    virtual void resume() {}
+    
     virtual double getCurrentTime() const;
 
 protected:

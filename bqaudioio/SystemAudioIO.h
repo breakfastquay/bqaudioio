@@ -20,6 +20,9 @@ public:
 
     bool isOK() const { return isSourceOK() && isTargetOK(); }
     bool isReady() const { return isSourceReady() && isTargetReady(); }
+
+    virtual void suspend() = 0;
+    virtual void resume() = 0;
 };
 
 }
