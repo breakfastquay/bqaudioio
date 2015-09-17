@@ -73,7 +73,8 @@ PortAudioIO::PortAudioIO(ApplicationRecordTarget *target,
     m_sampleRate(0),
     m_inputLatency(0),
     m_outputLatency(0),
-    m_prioritySet(false)
+    m_prioritySet(false),
+    m_suspended(false)
 {
     PaError err;
 
@@ -160,6 +161,10 @@ PortAudioIO::~PortAudioIO()
 {
     if (m_stream) {
 	PaError err;
+        err = Pa_AbortStream(m_stream);
+	if (err != paNoError) {
+	    cerr << "ERROR: PortAudioIO: Failed to abort PortAudio stream" << endl;
+	}
 	err = Pa_CloseStream(m_stream);
 	if (err != paNoError) {
 	    cerr << "ERROR: PortAudioIO: Failed to close PortAudio stream" << endl;
@@ -178,6 +183,30 @@ bool
 PortAudioIO::isTargetOK() const
 {
     return (m_stream != 0);
+}
+
+void
+PortAudioIO::suspend()
+{
+    if (m_suspended || !m_stream) return;
+    PaError err = Pa_AbortStream(m_stream);
+    if (err != paNoError) {
+        cerr << "ERROR: PortAudioIO: Failed to abort PortAudio stream" << endl;
+    }
+    m_suspended = true;
+    cerr << "suspended" << endl;
+}
+
+void
+PortAudioIO::resume()
+{
+    if (!m_suspended || !m_stream) return;
+    PaError err = Pa_StartStream(m_stream);
+    if (err != paNoError) {
+        cerr << "ERROR: PortAudioIO: Failed to restart PortAudio stream" << endl;
+    }
+    m_suspended = false;
+    cerr << "resumed" << endl;
 }
 
 double

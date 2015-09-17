@@ -25,8 +25,8 @@ public:
     virtual bool isSourceOK() const;
     virtual bool isTargetOK() const;
 
-    virtual void suspend() {} //!!! todo!
-    virtual void resume() {}
+    virtual void suspend();
+    virtual void resume();
     
     virtual double getCurrentTime() const;
 
@@ -46,6 +46,7 @@ protected:
     int m_inputLatency;
     int m_outputLatency;
     bool m_prioritySet;
+    bool m_suspended;
 };
 
 }
