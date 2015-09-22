@@ -23,6 +23,9 @@ public:
 
     virtual bool isSourceOK() const;
 
+    virtual void suspend() {}
+    virtual void resume() {}
+
 protected:
     int process(jack_nframes_t nframes);
     int xrun();

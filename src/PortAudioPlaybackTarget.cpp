@@ -46,7 +46,8 @@ PortAudioPlaybackTarget::PortAudioPlaybackTarget(ApplicationPlaybackSource *sour
     m_resampler(0),
     m_bufferSize(0),
     m_sampleRate(0),
-    m_latency(0)
+    m_latency(0),
+    m_suspended(false)
 {
     PaError err;
 
@@ -144,6 +145,34 @@ PortAudioPlaybackTarget::getCurrentTime() const
 {
     if (!m_stream) return 0.0;
     else return Pa_GetStreamTime(m_stream);
+}
+
+void
+PortAudioPlaybackTarget::suspend()
+{
+    if (m_suspended || !m_stream) return;
+    PaError err = Pa_AbortStream(m_stream);
+    if (err != paNoError) {
+        cerr << "ERROR: PortAudioIO: Failed to abort PortAudio stream" << endl;
+    }
+    m_suspended = true;
+#ifdef DEBUG_AUDIO_PORT_AUDIO_TARGET
+    cerr << "suspended" << endl;
+#endif
+}
+
+void
+PortAudioPlaybackTarget::resume()
+{
+    if (!m_suspended || !m_stream) return;
+    PaError err = Pa_StartStream(m_stream);
+    if (err != paNoError) {
+        cerr << "ERROR: PortAudioIO: Failed to restart PortAudio stream" << endl;
+    }
+    m_suspended = false;
+#ifdef DEBUG_AUDIO_PORT_AUDIO_TARGET
+    cerr << "resumed" << endl;
+#endif
 }
 
 int

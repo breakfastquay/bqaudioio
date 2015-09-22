@@ -185,6 +185,13 @@ PortAudioIO::isTargetOK() const
     return (m_stream != 0);
 }
 
+double
+PortAudioIO::getCurrentTime() const
+{
+    if (!m_stream) return 0.0;
+    else return Pa_GetStreamTime(m_stream);
+}
+
 void
 PortAudioIO::suspend()
 {
@@ -194,7 +201,9 @@ PortAudioIO::suspend()
         cerr << "ERROR: PortAudioIO: Failed to abort PortAudio stream" << endl;
     }
     m_suspended = true;
+#ifdef DEBUG_AUDIO_PORT_AUDIO_IO
     cerr << "suspended" << endl;
+#endif
 }
 
 void
@@ -206,14 +215,9 @@ PortAudioIO::resume()
         cerr << "ERROR: PortAudioIO: Failed to restart PortAudio stream" << endl;
     }
     m_suspended = false;
+#ifdef DEBUG_AUDIO_PORT_AUDIO_IO
     cerr << "resumed" << endl;
-}
-
-double
-PortAudioIO::getCurrentTime() const
-{
-    if (!m_stream) return 0.0;
-    else return Pa_GetStreamTime(m_stream);
+#endif
 }
 
 int

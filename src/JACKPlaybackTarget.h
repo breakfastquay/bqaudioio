@@ -26,6 +26,9 @@ public:
 
     virtual double getCurrentTime() const;
 
+    virtual void suspend() {}
+    virtual void resume() {}
+
 protected:
     void setup(int channels);
     int process(jack_nframes_t nframes);

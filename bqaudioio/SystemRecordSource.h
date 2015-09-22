@@ -4,11 +4,13 @@
 #ifndef BQAUDIOIO_SYSTEM_RECORD_SOURCE_H
 #define BQAUDIOIO_SYSTEM_RECORD_SOURCE_H
 
+#include "Suspendable.h"
+
 namespace breakfastquay {
 
 class ApplicationRecordTarget;
 
-class SystemRecordSource
+class SystemRecordSource : virtual public Suspendable
 {
 public:
     SystemRecordSource(ApplicationRecordTarget *target);

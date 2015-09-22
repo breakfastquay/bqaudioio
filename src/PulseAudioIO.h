@@ -1,8 +1,8 @@
 /* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
 /* Copyright Chris Cannam - All Rights Reserved */
 
-#ifndef _AUDIO_PULSE_AUDIO_IO_H_
-#define _AUDIO_PULSE_AUDIO_IO_H_
+#ifndef BQAUDIOIO_PULSE_AUDIO_IO_H
+#define BQAUDIOIO_PULSE_AUDIO_IO_H
 
 #ifdef HAVE_LIBPULSE
 
@@ -30,10 +30,10 @@ public:
     virtual bool isTargetOK() const;
     virtual bool isTargetReady() const;
 
+    virtual double getCurrentTime() const;
+
     virtual void suspend();
     virtual void resume();
-
-    virtual double getCurrentTime() const;
 
 protected:
     void streamWrite(int);
@@ -52,7 +52,8 @@ protected:
         return int((double(latusec) / 1000000.0) * double(m_sampleRate));
     }
     
-    std::recursive_mutex m_mutex;
+    std::mutex m_contextMutex;
+    mutable std::mutex m_streamMutex;
     std::thread m_loopthread;
 
     void threadRun() {

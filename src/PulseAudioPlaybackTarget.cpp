@@ -25,7 +25,8 @@ PulseAudioPlaybackTarget::PulseAudioPlaybackTarget(ApplicationPlaybackSource *so
     m_sampleRate(0),
     m_paChannels(2),
     m_done(false),
-    m_playbackReady(false)
+    m_playbackReady(false),
+    m_suspended(false)
 {
 #ifdef DEBUG_PULSE_AUDIO_PLAYBACK_TARGET
     cerr << "PulseAudioPlaybackTarget: Initialising for PulseAudio" << endl;
@@ -316,6 +317,43 @@ PulseAudioPlaybackTarget::streamStateChanged(pa_stream *stream)
             //!!! do something...
             break;
     }
+}
+
+void
+PulseAudioPlaybackTarget::suspend()
+{
+    lock_guard<recursive_mutex> guard(m_mutex);
+
+    if (m_suspended) return;
+
+    if (m_out) {
+        pa_stream_cork(m_out, 1, 0, 0);
+        pa_stream_flush(m_out, 0, 0);
+    }
+
+    m_suspended = true;
+    
+#ifdef DEBUG_PULSE_AUDIO_PLAYBACK_TARGET
+    cerr << "corked!" << endl;
+#endif
+}
+
+void
+PulseAudioPlaybackTarget::resume()
+{
+    lock_guard<recursive_mutex> guard(m_mutex);
+
+    if (!m_suspended) return;
+
+    if (m_out) {
+        pa_stream_cork(m_out, 0, 0, 0);
+    }
+
+    m_suspended = false;
+    
+#ifdef DEBUG_PULSE_AUDIO_PLAYBACK_TARGET
+    cerr << "uncorked!" << endl;
+#endif
 }
 
 void

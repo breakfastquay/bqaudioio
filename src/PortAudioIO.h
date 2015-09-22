@@ -1,8 +1,8 @@
 /* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
 /* Copyright Chris Cannam - All Rights Reserved */
 
-#ifndef _AUDIO_PORT_AUDIO_IO_H_
-#define _AUDIO_PORT_AUDIO_IO_H_
+#ifndef BQAUDIOIO_PORTAUDIO_IO_H
+#define BQAUDIOIO_PORTAUDIO_IO_H
 
 #ifdef HAVE_PORTAUDIO
 
@@ -19,17 +19,17 @@ class PortAudioIO : public SystemAudioIO
 {
 public:
     PortAudioIO(ApplicationRecordTarget *recordTarget,
-                     ApplicationPlaybackSource *playSource);
+                ApplicationPlaybackSource *playSource);
     virtual ~PortAudioIO();
 
     virtual bool isSourceOK() const;
     virtual bool isTargetOK() const;
 
+    virtual double getCurrentTime() const;
+
     virtual void suspend();
     virtual void resume();
     
-    virtual double getCurrentTime() const;
-
 protected:
     int process(const void *input, void *output, unsigned long frames,
                 const PaStreamCallbackTimeInfo *timeInfo,

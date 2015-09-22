@@ -13,6 +13,8 @@
 
 //#define DEBUG_AUDIO_PORT_AUDIO_SOURCE 1
 
+using namespace std;
+
 namespace breakfastquay {
 
 #ifdef __LINUX__
@@ -39,15 +41,16 @@ PortAudioRecordSource::PortAudioRecordSource(ApplicationRecordTarget *target) :
     m_stream(0),
     m_bufferSize(0),
     m_sampleRate(0),
-    m_latency(0)
+    m_latency(0),
+    m_suspended(false)
 {
-    std::cerr << "PortAudioRecordSource::PortAudioRecordSource" << std::endl;
+    cerr << "PortAudioRecordSource::PortAudioRecordSource" << endl;
 
     PaError err;
 
     err = Pa_Initialize();
     if (err != paNoError) {
-	std::cerr << "ERROR: PortAudioRecordSource: Failed to initialize PortAudio" << std::endl;
+	cerr << "ERROR: PortAudioRecordSource: Failed to initialize PortAudio" << endl;
 	return;
     }
 
@@ -68,7 +71,7 @@ PortAudioRecordSource::PortAudioRecordSource(ApplicationRecordTarget *target) :
                         paNoFlag, processStatic, this);
 
     if (err != paNoError) {
-	std::cerr << "ERROR: PortAudioRecordSource: Failed to open PortAudio stream" << std::endl;
+	cerr << "ERROR: PortAudioRecordSource: Failed to open PortAudio stream" << endl;
 	m_stream = 0;
 	Pa_Terminate();
 	return;
@@ -83,7 +86,7 @@ PortAudioRecordSource::PortAudioRecordSource(ApplicationRecordTarget *target) :
     err = Pa_StartStream(m_stream);
 
     if (err != paNoError) {
-	std::cerr << "ERROR: PortAudioRecordSource: Failed to start PortAudio stream" << std::endl;
+	cerr << "ERROR: PortAudioRecordSource: Failed to start PortAudio stream" << endl;
 	Pa_CloseStream(m_stream);
 	m_stream = 0;
 	Pa_Terminate();
@@ -91,7 +94,7 @@ PortAudioRecordSource::PortAudioRecordSource(ApplicationRecordTarget *target) :
     }
 
     if (m_target) {
-	std::cerr << "PortAudioRecordSource: block size " << m_bufferSize << std::endl;
+	cerr << "PortAudioRecordSource: block size " << m_bufferSize << endl;
 	m_target->setSystemRecordBlockSize(m_bufferSize);
 	m_target->setSystemRecordSampleRate(m_sampleRate);
 	m_target->setSystemRecordLatency(m_latency);
@@ -104,7 +107,7 @@ PortAudioRecordSource::~PortAudioRecordSource()
 	PaError err;
 	err = Pa_CloseStream(m_stream);
 	if (err != paNoError) {
-	    std::cerr << "ERROR: PortAudioRecordSource: Failed to close PortAudio stream" << std::endl;
+	    cerr << "ERROR: PortAudioRecordSource: Failed to close PortAudio stream" << endl;
 	}
 	Pa_Terminate();
     }
@@ -114,6 +117,34 @@ bool
 PortAudioRecordSource::isSourceOK() const
 {
     return (m_stream != 0);
+}
+
+void
+PortAudioRecordSource::suspend()
+{
+    if (m_suspended || !m_stream) return;
+    PaError err = Pa_AbortStream(m_stream);
+    if (err != paNoError) {
+        cerr << "ERROR: PortAudioIO: Failed to abort PortAudio stream" << endl;
+    }
+    m_suspended = true;
+#ifdef DEBUG_AUDIO_PORT_AUDIO_SOURCE
+    cerr << "suspended" << endl;
+#endif
+}
+
+void
+PortAudioRecordSource::resume()
+{
+    if (!m_suspended || !m_stream) return;
+    PaError err = Pa_StartStream(m_stream);
+    if (err != paNoError) {
+        cerr << "ERROR: PortAudioIO: Failed to restart PortAudio stream" << endl;
+    }
+    m_suspended = false;
+#ifdef DEBUG_AUDIO_PORT_AUDIO_SOURCE
+    cerr << "resumed" << endl;
+#endif
 }
 
 int
@@ -134,7 +165,7 @@ PortAudioRecordSource::process(const void *inputBuffer, void *,
                                PaStreamCallbackFlags)
 {
 #ifdef DEBUG_AUDIO_PORT_AUDIO_SOURCE    
-    std::cout << "PortAudioRecordSource::process(" << pa_nframes << ")" << std::endl;
+    cout << "PortAudioRecordSource::process(" << pa_nframes << ")" << endl;
 #endif
 
     if (!m_target) return 0;

@@ -1,8 +1,8 @@
 /* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
 /* Copyright Chris Cannam - All Rights Reserved */
 
-#ifndef _AUDIO_PORT_AUDIO_SOURCE_H_
-#define _AUDIO_PORT_AUDIO_SOURCE_H_
+#ifndef BQAUDIOIO_PORTAUDIO_RECORD_SOURCE_H
+#define BQAUDIOIO_PORTAUDIO_RECORD_SOURCE_H
 
 #ifdef HAVE_PORTAUDIO
 
@@ -22,6 +22,9 @@ public:
 
     virtual bool isSourceOK() const;
 
+    virtual void suspend();
+    virtual void resume();
+    
 protected:
     int process(const void *input, void *output, unsigned long frames,
                 const PaStreamCallbackTimeInfo *timeInfo,
@@ -36,6 +39,7 @@ protected:
     int m_bufferSize;
     int m_sampleRate;
     int m_latency;
+    bool m_suspended;
 };
 
 }

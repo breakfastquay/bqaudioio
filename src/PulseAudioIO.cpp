@@ -81,8 +81,6 @@ PulseAudioIO::~PulseAudioIO()
 
     m_done = true;
 
-    lock_guard<recursive_mutex> guard(m_mutex);
-
     if (m_loop) {
         pa_signal_done();
         pa_mainloop_quit(m_loop, 0);
@@ -131,7 +129,7 @@ double
 PulseAudioIO::getCurrentTime() const
 {
     if (!m_out) return 0.0;
-    
+
     pa_usec_t usec = 0;
     pa_stream_get_time(m_out, &usec);
     return double(usec) / 1000000.0;
@@ -157,7 +155,7 @@ PulseAudioIO::streamWrite(int requested)
 #endif
     if (m_done) return;
 
-    lock_guard<recursive_mutex> guard(m_mutex);
+    lock_guard<mutex> guard(m_streamMutex);
 
     pa_usec_t latency = 0;
     int negative = 0;
@@ -283,7 +281,7 @@ PulseAudioIO::streamRead(int available)
     cerr << "PulseAudioIO::streamRead(" << available << ")" << endl;
 #endif
 
-    lock_guard<recursive_mutex> guard(m_mutex);
+    lock_guard<mutex> guard(m_streamMutex);
     
     pa_usec_t latency = 0;
     int negative = 0;
@@ -388,7 +386,7 @@ PulseAudioIO::streamStateChanged(pa_stream *stream)
 
     assert(stream == m_in || stream == m_out);
 
-    lock_guard<recursive_mutex> guard(m_mutex);
+    lock_guard<mutex> guard(m_streamMutex);
 
     switch (pa_stream_get_state(stream)) {
 
@@ -442,22 +440,20 @@ PulseAudioIO::streamStateChanged(pa_stream *stream)
             //!!! do something...
             break;
     }
-}
 
-void
-PulseAudioIO::contextStateChangedStatic(pa_context *,
-                                        void *data)
-{
-    PulseAudioIO *target = (PulseAudioIO *)data;
-    target->contextStateChanged();
+#ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
+    cerr << "PulseAudioIO::streamStateChanged complete" << endl;
+#endif
 }
 
 void
 PulseAudioIO::suspend()
 {
-    lock_guard<recursive_mutex> guard(m_mutex);
+    lock_guard<mutex> sguard(m_streamMutex);
 
     if (m_suspended) return;
+
+    lock_guard<mutex> cguard(m_contextMutex);
 
     if (m_in) {
         pa_stream_cork(m_in, 1, 0, 0);
@@ -479,9 +475,11 @@ PulseAudioIO::suspend()
 void
 PulseAudioIO::resume()
 {
-    lock_guard<recursive_mutex> guard(m_mutex);
+    lock_guard<mutex> sguard(m_streamMutex);
 
     if (!m_suspended) return;
+
+    lock_guard<mutex> cguard(m_contextMutex);
 
     if (m_in) {
         pa_stream_cork(m_in, 0, 0, 0);
@@ -499,12 +497,20 @@ PulseAudioIO::resume()
 }
 
 void
+PulseAudioIO::contextStateChangedStatic(pa_context *,
+                                        void *data)
+{
+    PulseAudioIO *target = (PulseAudioIO *)data;
+    target->contextStateChanged();
+}
+
+void
 PulseAudioIO::contextStateChanged()
 {
 #ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
     cerr << "PulseAudioIO::contextStateChanged" << endl;
 #endif
-    lock_guard<recursive_mutex> guard(m_mutex);
+    lock_guard<mutex> guard(m_contextMutex);
 
     switch (pa_context_get_state(m_context)) {
 
@@ -572,6 +578,10 @@ PulseAudioIO::contextStateChanged()
             //!!! do something...
             break;
     }
+
+#ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
+    cerr << "PulseAudioIO::contextStateChanged complete" << endl;
+#endif
 }
 
 void

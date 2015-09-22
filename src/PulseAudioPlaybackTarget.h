@@ -27,6 +27,9 @@ public:
 
     virtual double getCurrentTime() const;
 
+    virtual void suspend();
+    virtual void resume();
+
 protected:
     void streamWrite(int);
     void streamStateChanged(pa_stream *);
@@ -64,6 +67,8 @@ protected:
     bool m_done;
 
     bool m_playbackReady;
+
+    bool m_suspended;
 };
 
 }

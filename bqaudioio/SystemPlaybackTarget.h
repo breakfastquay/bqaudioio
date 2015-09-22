@@ -4,11 +4,13 @@
 #ifndef BQAUDIOIO_SYSTEM_PLAYBACK_TARGET_H
 #define BQAUDIOIO_SYSTEM_PLAYBACK_TARGET_H
 
+#include "Suspendable.h"
+
 namespace breakfastquay {
 
 class ApplicationPlaybackSource;
 
-class SystemPlaybackTarget
+class SystemPlaybackTarget : virtual public Suspendable
 {
 public:
     SystemPlaybackTarget(ApplicationPlaybackSource *source);
