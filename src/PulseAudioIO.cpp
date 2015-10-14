@@ -13,7 +13,7 @@
 
 using namespace std;
 
-#define DEBUG_AUDIO_PULSE_AUDIO_IO 1
+//#define DEBUG_AUDIO_PULSE_AUDIO_IO 1
 
 namespace breakfastquay {
 
@@ -132,8 +132,6 @@ PulseAudioIO::threadRun()
     while (1) {
 
         {
-            cerr << "PREPARE" << endl;
-            
             lock_guard<mutex> lguard(m_loopMutex);
             if (m_done) return;
 
@@ -143,8 +141,6 @@ PulseAudioIO::threadRun()
                 return;
             }
         }
-
-        cerr << "POLL" << endl;
 
         {
             lock_guard<mutex> lguard(m_loopMutex);
@@ -158,8 +154,6 @@ PulseAudioIO::threadRun()
         }
 
         {
-            cerr << "DISPATCH" << endl;
-            
             lock_guard<mutex> lguard(m_loopMutex);
             if (m_done) return;
 
@@ -169,8 +163,6 @@ PulseAudioIO::threadRun()
                 return;
             }
         }
-
-        cerr << "REPEAT" << endl;
     }
 }
 
