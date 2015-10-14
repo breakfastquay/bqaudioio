@@ -51,15 +51,13 @@ protected:
     int latencyFrames(pa_usec_t latusec) {
         return int((double(latusec) / 1000000.0) * double(m_sampleRate));
     }
-    
+
+    std::mutex m_loopMutex;
     std::mutex m_contextMutex;
     mutable std::mutex m_streamMutex;
     std::thread m_loopthread;
 
-    void threadRun() {
-        int rv = 0;
-        pa_mainloop_run(m_loop, &rv); //!!! check return value from this, and rv
-    }
+    void threadRun();
 
     std::string m_name;
     

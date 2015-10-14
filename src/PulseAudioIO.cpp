@@ -79,26 +79,99 @@ PulseAudioIO::~PulseAudioIO()
 {
     cerr << "PulseAudioIO::~PulseAudioIO()" << endl;
 
-    m_done = true;
+    {
+        lock_guard<mutex> lguard(m_loopMutex);
+        lock_guard<mutex> sguard(m_streamMutex);
 
-    if (m_loop) {
-        pa_signal_done();
-        pa_mainloop_quit(m_loop, 0);
-        m_loopthread.join();
-        pa_mainloop_free(m_loop);
+        m_done = true;
+
+        if (m_loop) {
+            pa_signal_done();
+            pa_mainloop_quit(m_loop, 0);
+        }
+    }
+    
+    m_loopthread.join();
+
+    {
+        lock_guard<mutex> lguard(m_loopMutex);
+        if (m_loop) pa_mainloop_free(m_loop);
+        m_loop = 0;
     }
 
-    if (m_in) {
-        pa_stream_unref(m_in);
+    {
+        lock_guard<mutex> sguard(m_streamMutex);
+    
+        if (m_in) {
+            pa_stream_unref(m_in);
+            m_in = 0;
+        }
+        if (m_out) {
+            pa_stream_unref(m_out);
+            m_out = 0;
+        }
     }
-    if (m_out) {
-        pa_stream_unref(m_out);
-    }
-    if (m_context) {
-        pa_context_unref(m_context);
+
+    {
+        lock_guard<mutex> cguard(m_contextMutex);
+    
+        if (m_context) {
+            pa_context_unref(m_context);
+            m_context = 0;
+        }
     }
 
     cerr << "PulseAudioIO::~PulseAudioIO() done" << endl;
+}
+
+void
+PulseAudioIO::threadRun()
+{
+    int rv = 0;
+
+    while (1) {
+
+        {
+            cerr << "PREPARE" << endl;
+            
+            lock_guard<mutex> lguard(m_loopMutex);
+            if (m_done) return;
+
+            rv = pa_mainloop_prepare(m_loop, 1000);
+            if (rv < 0) {
+                cerr << "ERROR: PulseAudioIO::threadRun: Failure in pa_mainloop_prepare" << endl;
+                return;
+            }
+        }
+
+        cerr << "POLL" << endl;
+
+        {
+            lock_guard<mutex> lguard(m_loopMutex);
+            if (m_done) return;
+            rv = pa_mainloop_poll(m_loop);
+        }
+
+        if (rv < 0) {
+            cerr << "ERROR: PulseAudioIO::threadRun: Failure in pa_mainloop_poll" << endl;
+            return;
+        }
+
+        {
+            cerr << "DISPATCH" << endl;
+            
+            lock_guard<mutex> lguard(m_loopMutex);
+            if (m_done) return;
+
+            rv = pa_mainloop_dispatch(m_loop);
+            if (rv < 0) {
+                cerr << "ERROR: PulseAudioIO::threadRun: Failure in pa_mainloop_dispatch" << endl;
+                return;
+            }
+        }
+
+        cerr << "REPEAT" << endl;
+    }
 }
 
 bool
@@ -156,6 +229,7 @@ PulseAudioIO::streamWrite(int requested)
     if (m_done) return;
 
     lock_guard<mutex> guard(m_streamMutex);
+    if (m_done) return;
 
     pa_usec_t latency = 0;
     int negative = 0;
@@ -282,6 +356,7 @@ PulseAudioIO::streamRead(int available)
 #endif
 
     lock_guard<mutex> guard(m_streamMutex);
+    if (m_done) return;
     
     pa_usec_t latency = 0;
     int negative = 0;
@@ -387,6 +462,7 @@ PulseAudioIO::streamStateChanged(pa_stream *stream)
     assert(stream == m_in || stream == m_out);
 
     lock_guard<mutex> guard(m_streamMutex);
+    if (m_done) return;
 
     switch (pa_stream_get_state(stream)) {
 
@@ -449,12 +525,12 @@ PulseAudioIO::streamStateChanged(pa_stream *stream)
 void
 PulseAudioIO::suspend()
 {
-    lock_guard<mutex> sguard(m_streamMutex);
-
+    lock_guard<mutex> lguard(m_loopMutex);
     if (m_suspended) return;
 
-    lock_guard<mutex> cguard(m_contextMutex);
-
+    lock_guard<mutex> sguard(m_streamMutex);
+    if (m_done) return;
+    
     if (m_in) {
         pa_stream_cork(m_in, 1, 0, 0);
         pa_stream_flush(m_in, 0, 0);
@@ -475,13 +551,14 @@ PulseAudioIO::suspend()
 void
 PulseAudioIO::resume()
 {
-    lock_guard<mutex> sguard(m_streamMutex);
-
+    lock_guard<mutex> lguard(m_loopMutex);
     if (!m_suspended) return;
 
-    lock_guard<mutex> cguard(m_contextMutex);
+    lock_guard<mutex> sguard(m_streamMutex);
+    if (m_done) return;
 
     if (m_in) {
+        pa_stream_flush(m_in, 0, 0);
         pa_stream_cork(m_in, 0, 0, 0);
     }
 
