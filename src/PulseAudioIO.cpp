@@ -444,8 +444,6 @@ PulseAudioIO::streamStateChangedStatic(pa_stream *stream,
 {
     PulseAudioIO *target = (PulseAudioIO *)data;
     
-    assert(stream == target->m_in || stream == target->m_out);
-
     target->streamStateChanged(stream);
 }
 
@@ -456,10 +454,10 @@ PulseAudioIO::streamStateChanged(pa_stream *stream)
     cerr << "PulseAudioIO::streamStateChanged" << endl;
 #endif
 
-    assert(stream == m_in || stream == m_out);
-
     lock_guard<mutex> guard(m_streamMutex);
     if (m_done) return;
+
+    assert(stream == m_in || stream == m_out);
 
     switch (pa_stream_get_state(stream)) {
 
