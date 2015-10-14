@@ -195,8 +195,12 @@ PortAudioIO::getCurrentTime() const
 void
 PortAudioIO::suspend()
 {
+#ifdef DEBUG_AUDIO_PORT_AUDIO_IO
+    cerr << "PortAudioIO::suspend called" << endl;
+#endif
+
     if (m_suspended || !m_stream) return;
-    PaError err = Pa_AbortStream(m_stream);
+    PaError err = Pa_StopStream(m_stream);
     if (err != paNoError) {
         cerr << "ERROR: PortAudioIO: Failed to abort PortAudio stream" << endl;
     }
@@ -209,6 +213,10 @@ PortAudioIO::suspend()
 void
 PortAudioIO::resume()
 {
+#ifdef DEBUG_AUDIO_PORT_AUDIO_IO
+    cerr << "PortAudioIO::resume called" << endl;
+#endif
+
     if (!m_suspended || !m_stream) return;
     PaError err = Pa_StartStream(m_stream);
     if (err != paNoError) {
