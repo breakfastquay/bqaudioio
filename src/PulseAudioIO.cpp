@@ -80,6 +80,10 @@ PulseAudioIO::~PulseAudioIO()
     cerr << "PulseAudioIO::~PulseAudioIO()" << endl;
 
     {
+        if (m_loop) {
+            pa_mainloop_wakeup(m_loop);
+        }
+        
         lock_guard<mutex> lguard(m_loopMutex);
         lock_guard<mutex> sguard(m_streamMutex);
 
@@ -135,6 +139,7 @@ PulseAudioIO::threadRun()
             lock_guard<mutex> lguard(m_loopMutex);
             if (m_done) return;
 
+            //!!! not nice
             rv = pa_mainloop_prepare(m_loop, 1000);
             if (rv < 0) {
                 cerr << "ERROR: PulseAudioIO::threadRun: Failure in pa_mainloop_prepare" << endl;
@@ -517,6 +522,8 @@ PulseAudioIO::streamStateChanged(pa_stream *stream)
 void
 PulseAudioIO::suspend()
 {
+    if (m_loop) pa_mainloop_wakeup(m_loop);
+    
     lock_guard<mutex> lguard(m_loopMutex);
     if (m_suspended) return;
 
@@ -543,6 +550,8 @@ PulseAudioIO::suspend()
 void
 PulseAudioIO::resume()
 {
+    if (m_loop) pa_mainloop_wakeup(m_loop);
+    
     lock_guard<mutex> lguard(m_loopMutex);
     if (!m_suspended) return;
 
