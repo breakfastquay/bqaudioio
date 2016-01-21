@@ -86,6 +86,7 @@ PulseAudioIO::~PulseAudioIO()
             pa_mainloop_wakeup(m_loop);
         }
         
+        lock_guard<mutex> cguard(m_contextMutex);
         lock_guard<mutex> lguard(m_loopMutex);
         lock_guard<mutex> sguard(m_streamMutex);
 
@@ -542,9 +543,13 @@ PulseAudioIO::suspend()
 {
     if (m_loop) pa_mainloop_wakeup(m_loop);
     
-    lock_guard<mutex> lguard(m_loopMutex);
+#ifdef DEBUG_PULSE_AUDIO_IO
+    cerr << "PulseAudioIO::suspend: locking all mutexes" << endl;
+#endif
+    lock_guard<mutex> cguard(m_contextMutex);
     if (m_suspended) return;
 
+    lock_guard<mutex> lguard(m_loopMutex);
     lock_guard<mutex> sguard(m_streamMutex);
     if (m_done) return;
     
@@ -570,9 +575,13 @@ PulseAudioIO::resume()
 {
     if (m_loop) pa_mainloop_wakeup(m_loop);
     
-    lock_guard<mutex> lguard(m_loopMutex);
+#ifdef DEBUG_PULSE_AUDIO_IO
+    cerr << "PulseAudioIO::resume: locking all mutexes" << endl;
+#endif
+    lock_guard<mutex> cguard(m_contextMutex);
     if (!m_suspended) return;
 
+    lock_guard<mutex> lguard(m_loopMutex);
     lock_guard<mutex> sguard(m_streamMutex);
     if (m_done) return;
 
