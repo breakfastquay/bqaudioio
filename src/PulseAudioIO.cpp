@@ -13,7 +13,7 @@
 
 using namespace std;
 
-//#define DEBUG_AUDIO_PULSE_AUDIO_IO 1
+//#define DEBUG_PULSE_AUDIO_IO 1
 
 namespace breakfastquay {
 
@@ -33,7 +33,7 @@ PulseAudioIO::PulseAudioIO(ApplicationRecordTarget *target,
     m_playbackReady(false),
     m_suspended(false)
 {
-#ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
+#ifdef DEBUG_PULSE_AUDIO_IO
     cerr << "PulseAudioIO: Initialising for PulseAudio" << endl;
 #endif
 
@@ -77,7 +77,9 @@ PulseAudioIO::PulseAudioIO(ApplicationRecordTarget *target,
 
 PulseAudioIO::~PulseAudioIO()
 {
+#ifdef DEBUG_PULSE_AUDIO_IO
     cerr << "PulseAudioIO::~PulseAudioIO()" << endl;
+#endif
 
     {
         if (m_loop) {
@@ -136,6 +138,9 @@ PulseAudioIO::threadRun()
     while (1) {
 
         {
+#ifdef DEBUG_PULSE_AUDIO_IO
+            cerr << "PulseAudioIO::threadRun: locking loop mutex for prepare" << endl;
+#endif
             lock_guard<mutex> lguard(m_loopMutex);
             if (m_done) return;
 
@@ -148,6 +153,9 @@ PulseAudioIO::threadRun()
         }
 
         {
+#ifdef DEBUG_PULSE_AUDIO_IO
+            cerr << "PulseAudioIO::threadRun: locking loop mutex for poll" << endl;
+#endif
             lock_guard<mutex> lguard(m_loopMutex);
             if (m_done) return;
             rv = pa_mainloop_poll(m_loop);
@@ -159,6 +167,9 @@ PulseAudioIO::threadRun()
         }
 
         {
+#ifdef DEBUG_PULSE_AUDIO_IO
+            cerr << "PulseAudioIO::threadRun: locking loop mutex for dispatch" << endl;
+#endif
             lock_guard<mutex> lguard(m_loopMutex);
             if (m_done) return;
 
@@ -220,11 +231,14 @@ PulseAudioIO::streamWriteStatic(pa_stream *,
 void
 PulseAudioIO::streamWrite(int requested)
 {
-#ifdef DEBUG_AUDIO_PULSE_AUDIO_IO    
+#ifdef DEBUG_PULSE_AUDIO_IO    
     cout << "PulseAudioIO::streamWrite(" << requested << ")" << endl;
 #endif
     if (m_done) return;
 
+#ifdef DEBUG_PULSE_AUDIO_IO
+    cerr << "PulseAudioIO::streamWrite: locking stream mutex" << endl;
+#endif
     lock_guard<mutex> guard(m_streamMutex);
     if (m_done) return;
 
@@ -251,7 +265,7 @@ PulseAudioIO::streamWrite(int requested)
         cerr << "WARNING: PulseAudioIO::streamWrite: nframes " << nframes << " > m_bufferSize " << m_bufferSize << endl;
     }
 
-#ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
+#ifdef DEBUG_PULSE_AUDIO_IO
     cout << "PulseAudioIO::streamWrite: nframes = " << nframes << endl;
 #endif
 
@@ -322,7 +336,7 @@ PulseAudioIO::streamWrite(int requested)
 	if (ch > 0 || sourceChannels == 1) peakRight = peak;
     }
 
-#ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
+#ifdef DEBUG_PULSE_AUDIO_IO
     cerr << "calling pa_stream_write with "
               << nframes * tmpbufch * sizeof(float) << " bytes" << endl;
 #endif
@@ -348,10 +362,13 @@ PulseAudioIO::streamReadStatic(pa_stream *,
 void
 PulseAudioIO::streamRead(int available)
 {
-#ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
+#ifdef DEBUG_PULSE_AUDIO_IO
     cerr << "PulseAudioIO::streamRead(" << available << ")" << endl;
 #endif
 
+#ifdef DEBUG_PULSE_AUDIO_IO
+    cerr << "PulseAudioIO::streamRead: locking stream mutex" << endl;
+#endif
     lock_guard<mutex> guard(m_streamMutex);
     if (m_done) return;
     
@@ -379,7 +396,7 @@ PulseAudioIO::streamRead(int available)
         cerr << "WARNING: PulseAudioIO::streamRead: nframes " << nframes << " > m_bufferSize " << m_bufferSize << endl;
     }
 
-#ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
+#ifdef DEBUG_PULSE_AUDIO_IO
     cout << "PulseAudioIO::streamRead: nframes = " << nframes << endl;
 #endif
 
@@ -450,10 +467,13 @@ PulseAudioIO::streamStateChangedStatic(pa_stream *stream,
 void
 PulseAudioIO::streamStateChanged(pa_stream *stream)
 {
-#ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
+#ifdef DEBUG_PULSE_AUDIO_IO
     cerr << "PulseAudioIO::streamStateChanged" << endl;
 #endif
 
+#ifdef DEBUG_PULSE_AUDIO_IO
+    cerr << "PulseAudioIO::streamStateChanged: locking stream mutex" << endl;
+#endif
     lock_guard<mutex> guard(m_streamMutex);
     if (m_done) return;
 
@@ -512,7 +532,7 @@ PulseAudioIO::streamStateChanged(pa_stream *stream)
             break;
     }
 
-#ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
+#ifdef DEBUG_PULSE_AUDIO_IO
     cerr << "PulseAudioIO::streamStateChanged complete" << endl;
 #endif
 }
@@ -540,7 +560,7 @@ PulseAudioIO::suspend()
 
     m_suspended = true;
     
-#ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
+#ifdef DEBUG_PULSE_AUDIO_IO
     cerr << "corked!" << endl;
 #endif
 }
@@ -567,7 +587,7 @@ PulseAudioIO::resume()
 
     m_suspended = false;
     
-#ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
+#ifdef DEBUG_PULSE_AUDIO_IO
     cerr << "uncorked!" << endl;
 #endif
 }
@@ -583,8 +603,11 @@ PulseAudioIO::contextStateChangedStatic(pa_context *,
 void
 PulseAudioIO::contextStateChanged()
 {
-#ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
+#ifdef DEBUG_PULSE_AUDIO_IO
     cerr << "PulseAudioIO::contextStateChanged" << endl;
+#endif
+#ifdef DEBUG_PULSE_AUDIO_IO
+    cerr << "PulseAudioIO::contextStateChanged: locking context mutex" << endl;
 #endif
     lock_guard<mutex> guard(m_contextMutex);
 
@@ -655,7 +678,7 @@ PulseAudioIO::contextStateChanged()
             break;
     }
 
-#ifdef DEBUG_AUDIO_PULSE_AUDIO_IO
+#ifdef DEBUG_PULSE_AUDIO_IO
     cerr << "PulseAudioIO::contextStateChanged complete" << endl;
 #endif
 }
