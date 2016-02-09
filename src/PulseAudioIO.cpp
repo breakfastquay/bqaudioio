@@ -101,12 +101,6 @@ PulseAudioIO::~PulseAudioIO()
     m_loopthread.join();
 
     {
-        lock_guard<mutex> lguard(m_loopMutex);
-        if (m_loop) pa_mainloop_free(m_loop);
-        m_loop = 0;
-    }
-
-    {
         lock_guard<mutex> sguard(m_streamMutex);
     
         if (m_in) {
