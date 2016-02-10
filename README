@@ -1,7 +1,15 @@
 
-This library is a work-in-progress, taking code used in other bq
-software & wrapping it for reuse under a liberal licence. I don't
-advise using it yet unless you happen to be its author.
+bqaudioio
+=========
 
-Note C++11 (uses std::mutex)
+A small library wrapping various audio record / playback APIs in C++.
+
+Status: A bit messy.
+
+C++ standard required: C++11 (uses std::mutex)
+
+Copyright 2007-2015 Particular Programs Ltd.  Under a permissive
+BSD/MIT-style licence: see the file COPYING for details.
+
+
 
