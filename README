@@ -8,7 +8,7 @@ Status: A bit messy.
 
 C++ standard required: C++11 (uses std::mutex)
 
-Copyright 2007-2015 Particular Programs Ltd.  Under a permissive
+Copyright 2007-2016 Particular Programs Ltd.  Under a permissive
 BSD/MIT-style licence: see the file COPYING for details.
 
 
