@@ -34,6 +34,7 @@
 
 #include "PortAudioPlaybackTarget.h"
 #include "ApplicationPlaybackSource.h"
+#include "Gains.h"
 
 #include "bqresample/Resampler.h"
 #include "bqvec/Allocators.h"
@@ -304,6 +305,7 @@ PortAudioPlaybackTarget::process(const void *, void *outputBuffer,
     }
 
     float peakLeft = 0.0, peakRight = 0.0;
+    auto gain = Gains::gainsFor(m_outputGain, m_outputBalance, 2);
 
     for (int ch = 0; ch < 2; ++ch) {
 	
@@ -313,7 +315,7 @@ PortAudioPlaybackTarget::process(const void *, void *outputBuffer,
 
 	    // PortAudio samples are interleaved
 	    for (int i = 0; i < nframes; ++i) {
-		output[i * 2 + ch] = tmpbuf[ch][i] * m_outputGain;
+		output[i * 2 + ch] = tmpbuf[ch][i] * gain[ch];
 		float sample = fabsf(output[i * 2 + ch]);
 		if (sample > peak) peak = sample;
 	    }
@@ -321,7 +323,7 @@ PortAudioPlaybackTarget::process(const void *, void *outputBuffer,
 	} else if (ch == 1 && sourceChannels == 1) {
 
 	    for (int i = 0; i < nframes; ++i) {
-		output[i * 2 + ch] = tmpbuf[0][i] * m_outputGain;
+		output[i * 2 + ch] = tmpbuf[0][i] * gain[ch];
 		float sample = fabsf(output[i * 2 + ch]);
 		if (sample > peak) peak = sample;
 	    }
