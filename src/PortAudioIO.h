@@ -38,6 +38,7 @@
 #include <portaudio.h>
 
 #include "SystemAudioIO.h"
+#include "Mode.h"
 
 namespace breakfastquay {
 
@@ -47,7 +48,8 @@ class ApplicationPlaybackSource;
 class PortAudioIO : public SystemAudioIO
 {
 public:
-    PortAudioIO(ApplicationRecordTarget *recordTarget,
+    PortAudioIO(Mode mode,
+                ApplicationRecordTarget *recordTarget,
                 ApplicationPlaybackSource *playSource);
     virtual ~PortAudioIO();
 
@@ -64,18 +66,31 @@ protected:
                 const PaStreamCallbackTimeInfo *timeInfo,
                 PaStreamCallbackFlags statusFlags);
 
+    static PaError openStream(Mode, PaStream **,
+                              const PaStreamParameters *,
+                              const PaStreamParameters *,
+                              double, unsigned long);
+    
     static int processStatic(const void *, void *, unsigned long,
                              const PaStreamCallbackTimeInfo *,
                              PaStreamCallbackFlags, void *);
 
     PaStream *m_stream;
 
+    Mode m_mode;
     int m_bufferSize;
-    int m_sampleRate;
+    double m_sampleRate;
+    int m_inputChannels;
+    int m_outputChannels;
     int m_inputLatency;
     int m_outputLatency;
     bool m_prioritySet;
     bool m_suspended;
+    float **m_buffers;
+    int m_bufferChannels;
+
+    PortAudioIO(const PortAudioIO &)=delete;
+    PortAudioIO &operator=(const PortAudioIO &)=delete;
 };
 
 }

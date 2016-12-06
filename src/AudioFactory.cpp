@@ -31,13 +31,6 @@
 
 #include "AudioFactory.h"
 
-#include "JACKPlaybackTarget.h"
-#include "PulseAudioPlaybackTarget.h"
-#include "PortAudioPlaybackTarget.h"
-
-#include "JACKRecordSource.h"
-#include "PortAudioRecordSource.h"
-
 #include "JACKAudioIO.h"
 #include "PortAudioIO.h"
 #include "PulseAudioIO.h"
@@ -49,46 +42,54 @@ namespace breakfastquay {
 SystemPlaybackTarget *
 AudioFactory::createCallbackPlayTarget(ApplicationPlaybackSource *source)
 {
+    if (!source) {
+        throw std::logic_error("ApplicationPlaybackSource must be provided");
+    }
+
     SystemPlaybackTarget *target = 0;
 
 #ifdef HAVE_JACK
-    target = new JACKPlaybackTarget(source);
+    target = new JACKAudioIO(Mode::Playback, 0, source);
     if (target->isTargetOK()) return target;
     else {
-	std::cerr << "WARNING: AudioFactory::createCallbackTarget: Failed to open JACK target" << std::endl;
+	std::cerr << "WARNING: AudioFactory::createCallbackPlayTarget: Failed to open JACK target" << std::endl;
 	delete target;
     }
 #endif
 
 #ifdef HAVE_LIBPULSE
-    target = new PulseAudioPlaybackTarget(source);
+    target = new PulseAudioIO(Mode::Playback, 0, source);
     if (target->isTargetOK()) return target;
     else {
-	std::cerr << "WARNING: AudioFactory::createCallbackTarget: Failed to open PulseAudio target" << std::endl;
+	std::cerr << "WARNING: AudioFactory::createCallbackPlayTarget: Failed to open PulseAudio target" << std::endl;
 	delete target;
     }
 #endif
 
 #ifdef HAVE_PORTAUDIO
-    target = new PortAudioPlaybackTarget(source);
+    target = new PortAudioIO(Mode::Playback, 0, source);
     if (target->isTargetOK()) return target;
     else {
-	std::cerr << "WARNING: AudioFactory::createCallbackTarget: Failed to open PortAudio target" << std::endl;
+	std::cerr << "WARNING: AudioFactory::createCallbackPlayTarget: Failed to open PortAudio target" << std::endl;
 	delete target;
     }
 #endif
 
-    std::cerr << "WARNING: AudioFactory::createCallbackTarget: No suitable targets available" << std::endl;
+    std::cerr << "WARNING: AudioFactory::createCallbackPlayTarget: No suitable targets available" << std::endl;
     return 0;
 }
 
 SystemRecordSource *
 AudioFactory::createCallbackRecordSource(ApplicationRecordTarget *target)
 {
+    if (!target) {
+        throw std::logic_error("ApplicationRecordTarget must be provided");
+    }
+
     SystemRecordSource *source = 0;
 
 #ifdef HAVE_JACK
-    source = new JACKRecordSource(target);
+    source = new JACKAudioIO(Mode::Record, target, 0);
     if (source->isSourceOK()) return source;
     else {
 	std::cerr << "WARNING: AudioFactory::createCallbackRecordSource: Failed to open JACK source" << std::endl;
@@ -96,8 +97,17 @@ AudioFactory::createCallbackRecordSource(ApplicationRecordTarget *target)
     }
 #endif
 
+#ifdef HAVE_LIBPULSE
+    source = new PulseAudioIO(Mode::Record, target, 0);
+    if (source->isSourceOK()) return source;
+    else {
+	std::cerr << "WARNING: AudioFactory::createCallbackRecordSource: Failed to open PulseAudio source" << std::endl;
+	delete source;
+    }
+#endif
+
 #ifdef HAVE_PORTAUDIO
-    source = new PortAudioRecordSource(target);
+    source = new PortAudioIO(Mode::Record, target, 0);
     if (source->isSourceOK()) return source;
     else {
 	std::cerr << "WARNING: AudioFactory::createCallbackRecordSource: Failed to open PortAudio source" << std::endl;
@@ -113,10 +123,14 @@ SystemAudioIO *
 AudioFactory::createCallbackIO(ApplicationRecordTarget *target,
                                ApplicationPlaybackSource *source)
 {
+    if (!target || !source) {
+        throw std::logic_error("ApplicationRecordTarget and ApplicationPlaybackSource must both be provided");
+    }
+
     SystemAudioIO *io = 0;
 
 #ifdef HAVE_JACK
-    io = new JACKAudioIO(target, source);
+    io = new JACKAudioIO(Mode::Duplex, target, source);
     if (io->isOK()) return io;
     else {
 	std::cerr << "WARNING: AudioFactory::createCallbackIO: Failed to open JACK I/O" << std::endl;
@@ -125,7 +139,7 @@ AudioFactory::createCallbackIO(ApplicationRecordTarget *target,
 #endif
 
 #ifdef HAVE_LIBPULSE
-    io = new PulseAudioIO(target, source);
+    io = new PulseAudioIO(Mode::Duplex, target, source);
     if (io->isOK()) return io;
     else {
 	std::cerr << "WARNING: AudioFactory::createCallbackIO: Failed to open PulseAudio I/O" << std::endl;
@@ -134,7 +148,7 @@ AudioFactory::createCallbackIO(ApplicationRecordTarget *target,
 #endif
 
 #ifdef HAVE_PORTAUDIO
-    io = new PortAudioIO(target, source);
+    io = new PortAudioIO(Mode::Duplex, target, source);
     if (io->isOK()) return io;
     else {
 	std::cerr << "WARNING: AudioFactory::createCallbackIO: Failed to open PortAudio I/O" << std::endl;

@@ -56,7 +56,8 @@ public:
 
     /**
      * Return the sample rate at which the application runs. The
-     * target or IO will attempt to open its device at this rate,
+     * target or IO will attempt to open its device at the rate
+     * returned by this call at the point where the device is opened,
      * although it might not succeed; it will provide the actual rate
      * through a subsequent call to setSystemPlaybackSampleRate.
      *
@@ -65,7 +66,18 @@ public:
      */
     virtual int getApplicationSampleRate() const = 0;
 
-    /**!!! todo */
+    /**
+     * Return the number of audio channels that will be delivered by
+     * the application. The target or IO will attempt to open its
+     * device with this number of channels, though it might not
+     * succeed; it will provide the actual number of channels through
+     * a subsequent call to setSystemPlaybackChannelCount and will
+     * mixdown as appropriate.
+     *
+     * This must not be zero, as it is used (regardless of the target
+     * channel count) as the number of channel buffers in the
+     * getSourceSamples callback.
+     */
     virtual int getApplicationChannelCount() const = 0;
 
     /**
@@ -85,7 +97,16 @@ public:
 
     /**
      * Called by the system target/IO to tell the application the
-     * system playback latency in sample frames.
+     * actual number of channels with which the audio device was
+     * opened. Note that the target/IO handles channel mapping and
+     * mixdown; this is just informative.
+     */
+    virtual void setSystemPlaybackChannelCount(int) = 0;
+    
+    /**
+     * Called by the system target/IO to tell the application the
+     * system playback latency in sample frames at the playback sample
+     * rate.
      */
     virtual void setSystemPlaybackLatency(int) = 0;
 

@@ -1,4 +1,5 @@
 /* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
+
 /*
     bqaudioio
 
@@ -29,62 +30,17 @@
     Software without prior written authorization.
 */
 
-#ifndef BQAUDIOIO_JACK_IO_H_
-#define BQAUDIOIO_JACK_IO_H_
-
-#ifdef HAVE_JACK
-
-#include <jack/jack.h>
-#include <vector>
-#include <mutex>
-
-#include "SystemAudioIO.h"
-#include "Mode.h"
+#ifndef BQAUDIOIO_MODE_H
+#define BQAUDIOIO_MODE_H
 
 namespace breakfastquay {
 
-class ApplicationRecordTarget;
-class ApplicationPlaybackSource;
-
-class JACKAudioIO : public SystemAudioIO
-{
-public:
-    JACKAudioIO(Mode mode,
-                ApplicationRecordTarget *recordTarget,
-		ApplicationPlaybackSource *playSource);
-    virtual ~JACKAudioIO();
-
-    virtual bool isSourceOK() const;
-    virtual bool isTargetOK() const;
-
-    virtual void suspend() {}
-    virtual void resume() {}
-    
-    virtual double getCurrentTime() const;
-    
-protected:
-    void setup();
-    int process(jack_nframes_t nframes);
-    int xrun();
-
-    static int processStatic(jack_nframes_t, void *);
-    static int xrunStatic(void *);
-
-    Mode                        m_mode;
-    jack_client_t              *m_client;
-    std::vector<jack_port_t *>  m_outputs;
-    std::vector<jack_port_t *>  m_inputs;
-    jack_nframes_t              m_bufferSize;
-    jack_nframes_t              m_sampleRate;
-    std::mutex                  m_mutex;
-
-    JACKAudioIO(const JACKAudioIO &)=delete;
-    JACKAudioIO &operator=(const JACKAudioIO &)=delete;
+enum class Mode {
+    Playback,
+    Record,
+    Duplex   // i.e. IO
 };
 
 }
 
-#endif /* HAVE_JACK */
-
 #endif
-

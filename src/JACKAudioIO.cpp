@@ -52,15 +52,24 @@ using namespace std;
 
 namespace breakfastquay {
 
-JACKAudioIO::JACKAudioIO(ApplicationRecordTarget *target,
+JACKAudioIO::JACKAudioIO(Mode mode,
+                         ApplicationRecordTarget *target,
 			 ApplicationPlaybackSource *source) :
     SystemAudioIO(target, source),
+    m_mode(mode),
     m_client(0),
     m_bufferSize(0),
     m_sampleRate(0)
 {
-    JackOptions options = JackNullOption;
+    if (m_mode == Mode::Playback) {
+        m_target = 0;
+    }
+    if (m_mode == Mode::Record) {
+        m_source = 0;
+    }
 
+    JackOptions options = JackNullOption;
+    
 #if defined(HAVE_PORTAUDIO) || defined(HAVE_LIBPULSE)
     options = JackNoStartServer;
 #endif
@@ -86,7 +95,7 @@ JACKAudioIO::JACKAudioIO(ApplicationRecordTarget *target,
 		  << endl;
     }
 
-    setup(2);
+    setup();
 }
 
 JACKAudioIO::~JACKAudioIO()
@@ -100,13 +109,13 @@ JACKAudioIO::~JACKAudioIO()
 bool
 JACKAudioIO::isSourceOK() const
 {
-    return (m_client != 0);
+    return (m_client != 0 && m_mode != Mode::Playback);
 }
 
 bool
 JACKAudioIO::isTargetOK() const
 {
-    return (m_client != 0);
+    return (m_client != 0 && m_mode != Mode::Record);
 }
 
 double
@@ -132,23 +141,32 @@ JACKAudioIO::xrunStatic(void *arg)
 }
 
 void
-JACKAudioIO::setup(int channels)
+JACKAudioIO::setup()
 {
     lock_guard<mutex> guard(m_mutex);
 
+    int channelsPlay = 2;
+    int channelsRec = 2;
+    
     if (m_source) {
         m_source->setSystemPlaybackBlockSize(m_bufferSize);
         m_source->setSystemPlaybackSampleRate(m_sampleRate);
+        if (m_source->getApplicationChannelCount() > 0) {
+            channelsPlay = m_source->getApplicationChannelCount();
+        }
     }
     if (m_target) {
         m_target->setSystemRecordBlockSize(m_bufferSize);
         m_target->setSystemRecordSampleRate(m_sampleRate);
-        if (channels < m_target->getApplicationChannelCount()) {
-            channels = m_target->getApplicationChannelCount();
+        if (m_target->getApplicationChannelCount() > 0) {
+            channelsRec = m_target->getApplicationChannelCount();
         }
     }
 
-    if (channels == int(m_outputs.size()) || !m_client) {
+    if (!m_client) return;
+    
+    if (channelsPlay == int(m_outputs.size()) &&
+        channelsRec == int(m_inputs.size())) {
 	return;
     }
 
@@ -171,7 +189,7 @@ JACKAudioIO::setup(int channels)
 
     if (m_source) {
 
-        while (int(m_outputs.size()) < channels) {
+        while (int(m_outputs.size()) < channelsPlay) {
 	
             char name[20];
             jack_port_t *port;
@@ -206,7 +224,7 @@ JACKAudioIO::setup(int channels)
 
     if (m_target) {
 
-        while (int(m_inputs.size()) < channels) {
+        while (int(m_inputs.size()) < channelsRec) {
 	
             char name[20];
             jack_port_t *port;
@@ -239,7 +257,7 @@ JACKAudioIO::setup(int channels)
         }
     }
 
-    while (int(m_outputs.size()) > channels) {
+    while (int(m_outputs.size()) > channelsPlay) {
 	vector<jack_port_t *>::iterator itr = m_outputs.end();
 	--itr;
 	jack_port_t *port = *itr;
@@ -247,12 +265,19 @@ JACKAudioIO::setup(int channels)
 	m_outputs.erase(itr);
     }
 
-    while (int(m_inputs.size()) > channels) {
+    while (int(m_inputs.size()) > channelsRec) {
 	vector<jack_port_t *>::iterator itr = m_inputs.end();
 	--itr;
 	jack_port_t *port = *itr;
 	if (port) jack_port_unregister(m_client, port);
 	m_inputs.erase(itr);
+    }
+
+    if (m_source) {
+        m_source->setSystemPlaybackChannelCount(channelsPlay);
+    }
+    if (m_target) {
+        m_target->setSystemRecordChannelCount(channelsRec);
     }
 }
 

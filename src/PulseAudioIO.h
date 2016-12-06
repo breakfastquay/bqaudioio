@@ -38,6 +38,7 @@
 #include <pulse/pulseaudio.h>
 
 #include "SystemAudioIO.h"
+#include "Mode.h"
 
 #include <mutex>
 #include <thread>
@@ -50,8 +51,9 @@ class ApplicationPlaybackSource;
 class PulseAudioIO : public SystemAudioIO
 {
 public:
-    PulseAudioIO(ApplicationRecordTarget *recordTarget,
-		      ApplicationPlaybackSource *playSource);
+    PulseAudioIO(Mode mode,
+                 ApplicationRecordTarget *recordTarget,
+                 ApplicationPlaybackSource *playSource);
     virtual ~PulseAudioIO();
 
     virtual bool isSourceOK() const;
@@ -106,6 +108,9 @@ protected:
     bool m_playbackReady;
 
     bool m_suspended;
+
+    PulseAudioIO(const PulseAudioIO &)=delete;
+    PulseAudioIO &operator=(const PulseAudioIO &)=delete;
 };
 
 }

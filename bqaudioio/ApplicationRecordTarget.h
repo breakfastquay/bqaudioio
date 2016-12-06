@@ -56,17 +56,27 @@ public:
     
     /**
      * Return the sample rate at which the application runs. The
-     * source or IO will attempt to open its device at this rate,
+     * source or IO will attempt to open its device at the rate
+     * returned by this call at the point where the device is opened,
      * although it might not succeed; it will provide the actual rate
-     * through a subsequent call to setSystemRecordSampleRate.
+     * through a subsequent call to setSystemPlaybackSampleRate.
      *
      * Return 0 if the application has no central sample rate of its
      * own and is happy to accept the default rate of the device.
      */
     virtual int getApplicationSampleRate() const { return 0; }
 
-    /*!!! todo:
-      does this make sense at all? I think the target should have to deal with mismatches in channel count and sample rate..
+    /**
+     * Return the number of audio channels expected by the
+     * application. The source or IO will attempt to open its device
+     * with this number of channels, though it might not succeed; it
+     * will provide the actual number of channels through a subsequent
+     * call to setSystemPlaybackChannelCount and will mixdown as
+     * appropriate.
+     *
+     * This must not be zero, as it is used (regardless of the target
+     * channel count) as the number of channel buffers in the
+     * putSamples callback.
     */
     virtual int getApplicationChannelCount() const = 0;
 
@@ -84,6 +94,14 @@ public:
      * sample rate at which the audio device was opened.
      */
     virtual void setSystemRecordSampleRate(int) = 0;
+    
+    /**
+     * Called by the system source/IO to tell the application the
+     * actual number of channels with which the audio device was
+     * opened. Note that the source/IO handles channel mapping and
+     * mixdown; this is just informative.
+     */
+    virtual void setSystemRecordChannelCount(int) = 0;
     
     /**
      * Called by the system source/IO to tell the application the

@@ -84,16 +84,22 @@ PortAudioRecordSource::PortAudioRecordSource(ApplicationRecordTarget *target) :
     }
 
     m_bufferSize = 1024;
-    m_sampleRate = 44100;
-    if (m_target && (m_target->getApplicationSampleRate() != 0)) {
-	m_sampleRate = m_target->getApplicationSampleRate();
-    }
 
     PaStreamParameters p;
     p.device = Pa_GetDefaultInputDevice();
+
+    const PaDeviceInfo *inInfo = Pa_GetDeviceInfo(p.device);
+    m_sampleRate = int(round(inInfo->defaultSampleRate));
+
+    if (m_target && (m_target->getApplicationSampleRate() != 0)) {
+	m_sampleRate = m_target->getApplicationSampleRate();
+    } else if (m_sampleRate == 0) {
+        m_sampleRate = 44100;
+    }
+    
     p.channelCount = 2;
     p.sampleFormat = paFloat32;
-    p.suggestedLatency = 1.0; //!!! was 0.2
+    p.suggestedLatency = 0.2;
     p.hostApiSpecificStreamInfo = 0;
     err = Pa_OpenStream(&m_stream, &p, 0, m_sampleRate,
                         paFramesPerBufferUnspecified,
