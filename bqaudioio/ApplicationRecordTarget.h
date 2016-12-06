@@ -74,7 +74,8 @@ public:
      * call to setSystemPlaybackChannelCount and will mixdown as
      * appropriate.
      *
-     * This must not be zero, as it is used (regardless of the target
+     * This must not be zero and must not change during the lifetime
+     * of the source or IO, as it is used (regardless of the target
      * channel count) as the number of channel buffers in the
      * putSamples callback.
     */
