@@ -24,14 +24,16 @@ depend:
 # DO NOT DELETE
 
 src/SystemRecordSource.o: ./bqaudioio/SystemRecordSource.h
+src/SystemRecordSource.o: ./bqaudioio/Suspendable.h
 src/SystemRecordSource.o: ./bqaudioio/ApplicationRecordTarget.h
-src/AudioFactory.o: ./bqaudioio/AudioFactory.h src/JACKPlaybackTarget.h
-src/AudioFactory.o: src/PulseAudioPlaybackTarget.h
-src/AudioFactory.o: src/PortAudioPlaybackTarget.h src/JACKRecordSource.h
-src/AudioFactory.o: src/PortAudioRecordSource.h src/JACKAudioIO.h
+src/AudioFactory.o: ./bqaudioio/AudioFactory.h src/JACKAudioIO.h
 src/AudioFactory.o: src/PortAudioIO.h src/PulseAudioIO.h
 src/SystemPlaybackTarget.o: ./bqaudioio/SystemPlaybackTarget.h
+src/SystemPlaybackTarget.o: ./bqaudioio/Suspendable.h
 src/ResamplerWrapper.o: src/ResamplerWrapper.h
 src/ResamplerWrapper.o: ./bqaudioio/ApplicationPlaybackSource.h
+bqaudioio/SystemPlaybackTarget.o: ./bqaudioio/Suspendable.h
 bqaudioio/SystemAudioIO.o: ./bqaudioio/SystemRecordSource.h
+bqaudioio/SystemAudioIO.o: ./bqaudioio/Suspendable.h
 bqaudioio/SystemAudioIO.o: ./bqaudioio/SystemPlaybackTarget.h
+bqaudioio/SystemRecordSource.o: ./bqaudioio/Suspendable.h

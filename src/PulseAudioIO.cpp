@@ -92,8 +92,6 @@ PulseAudioIO::PulseAudioIO(Mode mode,
 
     m_api = pa_mainloop_get_api(m_loop);
 
-    //!!! handle signals how?
-
     int sourceRate = 0;
     int targetRate = 0;
 
@@ -483,9 +481,9 @@ void
 PulseAudioIO::streamStateChangedStatic(pa_stream *stream,
                                             void *data)
 {
-    PulseAudioIO *target = (PulseAudioIO *)data;
+    PulseAudioIO *io = (PulseAudioIO *)data;
     
-    target->streamStateChanged(stream);
+    io->streamStateChanged(stream);
 }
 
 void
@@ -635,8 +633,8 @@ void
 PulseAudioIO::contextStateChangedStatic(pa_context *,
                                         void *data)
 {
-    PulseAudioIO *target = (PulseAudioIO *)data;
-    target->contextStateChanged();
+    PulseAudioIO *io = (PulseAudioIO *)data;
+    io->contextStateChanged();
 }
 
 void
