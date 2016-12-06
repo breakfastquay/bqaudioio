@@ -1,5 +1,4 @@
 /* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
-
 /*
     bqaudioio
 
@@ -30,43 +29,26 @@
     Software without prior written authorization.
 */
 
-#include "SystemPlaybackTarget.h"
+#ifndef BQAUDIOIO_GAINS_H
+#define BQAUDIOIO_GAINS_H
 
-namespace breakfastquay {
+#include <vector>
 
-SystemPlaybackTarget::SystemPlaybackTarget(ApplicationPlaybackSource *source) :
-    m_source(source),
-    m_outputGain(1.0)
+class Gains
 {
-}
+public:
+    static
+    std::vector<float> gainsFor(float gain, float balance, size_t channelCount) {
+        std::vector<float> gains(channelCount, gain);
+        for (int c = 0; c < int(channelCount); ++c) {
+            if (c == 0) {
+                if (balance > 0.f) gains[c] *= (1.0f - balance);
+            } else if (c == 1) {
+                if (balance < 0.f) gains[c] *= (balance + 1.0f);
+            }
+        }
+        return gains;
+    }
+};
 
-SystemPlaybackTarget::~SystemPlaybackTarget()
-{
-}
-
-void
-SystemPlaybackTarget::setOutputGain(float gain)
-{
-    m_outputGain = gain;
-}
-
-float
-SystemPlaybackTarget::getOutputGain() const
-{
-    return m_outputGain;
-}
-
-void
-SystemPlaybackTarget::setOutputBalance(float balance)
-{
-    m_outputBalance = balance;
-}
-
-float
-SystemPlaybackTarget::getOutputBalance() const
-{
-    return m_outputBalance;
-}
-
-}
-
+#endif

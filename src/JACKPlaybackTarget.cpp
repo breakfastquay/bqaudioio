@@ -35,6 +35,7 @@
 #include "JACKPlaybackTarget.h"
 #include "DynamicJACK.h"
 #include "ApplicationPlaybackSource.h"
+#include "Gains.h"
 
 #include <bqvec/Range.h>
 
@@ -221,13 +222,14 @@ JACKPlaybackTarget::process(jack_nframes_t j_nframes)
     }
 
     float peakLeft = 0.0, peakRight = 0.0;
+    auto gain = Gains::gainsFor(m_outputGain, m_outputBalance, m_outputs.size()); 
 
     for (int ch = 0; in_range_for(m_outputs, ch); ++ch) {
 
 	float peak = 0.0;
 
 	for (int i = 0; i < nframes; ++i) {
-	    buffers[ch][i] *= m_outputGain;
+	    buffers[ch][i] *= gain[ch];
 	    float sample = fabsf(buffers[ch][i]);
 	    if (sample > peak) peak = sample;
 	}

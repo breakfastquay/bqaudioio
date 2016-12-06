@@ -35,6 +35,7 @@
 #include "DynamicJACK.h"
 #include "ApplicationPlaybackSource.h"
 #include "ApplicationRecordTarget.h"
+#include "Gains.h"
 
 #include <bqvec/Range.h>
 
@@ -311,7 +312,8 @@ JACKAudioIO::process(jack_nframes_t j_nframes)
     float **outbufs = (float **)alloca(m_outputs.size() * sizeof(float *));
 
     float peakLeft, peakRight;
-
+    auto gain = Gains::gainsFor(m_outputGain, m_outputBalance, m_outputs.size()); 
+    
     if (m_source) {
 
         for (int ch = 0; in_range_for(m_outputs, ch); ++ch) {
@@ -333,7 +335,7 @@ JACKAudioIO::process(jack_nframes_t j_nframes)
             }
         
             for (int i = 0; i < nframes; ++i) {
-                outbufs[ch][i] *= m_outputGain;
+                outbufs[ch][i] *= gain[ch];
                 float sample = fabsf(outbufs[ch][i]);
                 if (sample > peak) peak = sample;
             }

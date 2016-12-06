@@ -35,6 +35,7 @@
 #include "PulseAudioIO.h"
 #include "ApplicationPlaybackSource.h"
 #include "ApplicationRecordTarget.h"
+#include "Gains.h"
 
 #include <iostream>
 #include <cmath>
@@ -320,6 +321,7 @@ PulseAudioIO::streamWrite(int requested)
     int received = m_source->getSourceSamples(nframes, tmpbuf);
 
     float peakLeft = 0.0, peakRight = 0.0;
+    auto gain = Gains::gainsFor(m_outputGain, m_outputBalance, m_paChannels); 
 
     for (int ch = 0; ch < m_paChannels; ++ch) {
 	
@@ -330,7 +332,7 @@ PulseAudioIO::streamWrite(int requested)
 	    // PulseAudio samples are interleaved
 	    for (int i = 0; i < nframes; ++i) {
                 if (i < received) {
-                    output[i * m_paChannels + ch] = tmpbuf[ch][i] * m_outputGain;
+                    output[i * m_paChannels + ch] = tmpbuf[ch][i] * gain[ch];
                     float sample = fabsf(output[i * m_paChannels + ch]);
                     if (sample > peak) peak = sample;
                 } else {
@@ -342,7 +344,7 @@ PulseAudioIO::streamWrite(int requested)
 
 	    for (int i = 0; i < nframes; ++i) {
                 if (i < received) {
-                    output[i * m_paChannels + ch] = tmpbuf[0][i] * m_outputGain;
+                    output[i * m_paChannels + ch] = tmpbuf[0][i] * gain[ch];
                     float sample = fabsf(output[i * m_paChannels + ch]);
                     if (sample > peak) peak = sample;
                 } else {

@@ -34,6 +34,7 @@
 #include "PortAudioIO.h"
 #include "ApplicationPlaybackSource.h"
 #include "ApplicationRecordTarget.h"
+#include "Gains.h"
 
 #include "bqvec/VectorOps.h"
 
@@ -426,6 +427,8 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
         m_target->putSamples(nframes, m_buffers);
         m_target->setInputLevels(peakLeft, peakRight);
     }
+
+    auto gain = Gains::gainsFor(m_outputGain, m_outputBalance, 2);
     
     if (m_source) {
 
@@ -447,7 +450,7 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
 
                 // PortAudio samples are interleaved
                 for (int i = 0; i < nframes; ++i) {
-                    output[i * 2 + ch] = tmpbuf[ch][i] * m_outputGain;
+                    output[i * 2 + ch] = tmpbuf[ch][i] * gain[ch];
                     float sample = fabsf(output[i * 2 + ch]);
                     if (sample > peak) peak = sample;
                 }
@@ -455,7 +458,7 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
             } else if (ch == 1 && sourceChannels == 1) {
 
                 for (int i = 0; i < nframes; ++i) {
-                    output[i * 2 + ch] = tmpbuf[0][i] * m_outputGain;
+                    output[i * 2 + ch] = tmpbuf[0][i] * gain[ch];
                     float sample = fabsf(output[i * 2 + ch]);
                     if (sample > peak) peak = sample;
                 }

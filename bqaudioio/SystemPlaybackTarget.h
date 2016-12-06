@@ -89,15 +89,25 @@ public:
     /**
      * Retrieve the playback gain.
      */
-    virtual float getOutputGain() const {
-	return m_outputGain;
-    }
+    virtual float getOutputGain() const;
+
+    /**
+     * Set the playback balance for stereo output (-1.0 = hard left,
+     * 1.0 = hard right, 0.0 = middle). The default is 0.0.
+     */
+    virtual void setOutputBalance(float balance);
+
+    /**
+     * Retrieve the playback balance.
+     */
+    virtual float getOutputBalance() const;
 
 protected:
     SystemPlaybackTarget(ApplicationPlaybackSource *source);
 
     ApplicationPlaybackSource *m_source;
     float m_outputGain;
+    float m_outputBalance;
 };
 
 }
