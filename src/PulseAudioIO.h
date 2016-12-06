@@ -90,6 +90,7 @@ protected:
 
     void threadRun();
 
+    Mode m_mode;
     std::string m_name;
     
     pa_mainloop *m_loop;
@@ -97,11 +98,14 @@ protected:
     pa_context *m_context;
     pa_stream *m_in;
     pa_stream *m_out;
-    pa_sample_spec m_spec;
+    pa_sample_spec m_inSpec;
+    pa_sample_spec m_outSpec;
 
+    float **m_buffers;
+    float *m_interleaved;
+    int m_bufferChannels;
     int m_bufferSize;
     int m_sampleRate;
-    int m_paChannels;
     bool m_done;
 
     bool m_captureReady;
@@ -109,6 +113,8 @@ protected:
 
     bool m_suspended;
 
+    void checkBufferCapacity(int channels, int nframes);
+    
     PulseAudioIO(const PulseAudioIO &)=delete;
     PulseAudioIO &operator=(const PulseAudioIO &)=delete;
 };

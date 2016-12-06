@@ -37,6 +37,7 @@
 #include "Gains.h"
 
 #include "bqvec/VectorOps.h"
+#include "bqvec/Allocators.h"
 
 #include <iostream>
 #include <cassert>
@@ -98,8 +99,8 @@ PortAudioIO::PortAudioIO(Mode mode,
                          ApplicationRecordTarget *target,
                          ApplicationPlaybackSource *source) :
     SystemAudioIO(target, source),
-    m_mode(mode),
     m_stream(0),
+    m_mode(mode),
     m_bufferSize(0),
     m_sampleRate(0),
     m_inputLatency(0),
@@ -107,8 +108,7 @@ PortAudioIO::PortAudioIO(Mode mode,
     m_prioritySet(false),
     m_suspended(false),
     m_buffers(0),
-    m_bufferChannels(0),
-    m_bufferSize(0)
+    m_bufferChannels(0)
 {
     if (m_mode == Mode::Playback) {
         m_target = 0;
@@ -177,11 +177,12 @@ PortAudioIO::PortAudioIO(Mode mode,
 
     m_bufferSize = 0;
     err = openStream(m_mode, &m_stream, &ip, &op, m_sampleRate,
-                     paFramesPerBufferUnspecified);
+                     paFramesPerBufferUnspecified, this);
 
     if (err != paNoError) {
 	m_bufferSize = 1024;
-        err = openStream(m_mode, &m_stream, &ip, &op, m_sampleRate, 1024);
+        err = openStream(m_mode, &m_stream, &ip, &op, m_sampleRate,
+                         1024, this);
     }
 
     if (err != paNoError) {
@@ -198,11 +199,12 @@ PortAudioIO::PortAudioIO(Mode mode,
 
             m_bufferSize = 0;
             err = openStream(m_mode, &m_stream, &ip, &op, m_sampleRate,
-                             paFramesPerBufferUnspecified);
+                             paFramesPerBufferUnspecified, this);
 
             m_bufferSize = 1024;
             if (err != paNoError) {
-                err = openStream(m_mode, &m_stream, &ip, &op, m_sampleRate, 1024);
+                err = openStream(m_mode, &m_stream, &ip, &op, m_sampleRate,
+                                 1024, this);
             }
         }
     }
@@ -279,19 +281,20 @@ PortAudioIO::openStream(Mode mode,
                         const PaStreamParameters *inputParameters,
                         const PaStreamParameters *outputParameters,
                         double sampleRate,
-                        unsigned long framesPerBuffer)
+                        unsigned long framesPerBuffer,
+                        void *data)
 {
     switch (mode) {
     case Mode::Playback:
         return Pa_OpenStream(stream, 0, outputParameters, sampleRate,
-                             framesPerBuffer, paNoFlag, processStatic, this);
+                             framesPerBuffer, paNoFlag, processStatic, data);
     case Mode::Record:
         return Pa_OpenStream(stream, inputParameters, 0, sampleRate,
-                             framesPerBuffer, paNoFlag, processStatic, this);
+                             framesPerBuffer, paNoFlag, processStatic, data);
     case Mode::Duplex:
         return Pa_OpenStream(stream, inputParameters, outputParameters,
                              sampleRate,
-                             framesPerBuffer, paNoFlag, processStatic, this);
+                             framesPerBuffer, paNoFlag, processStatic, data);
     };
     return paNoError;
 }
@@ -413,74 +416,59 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
 
         peakLeft = 0.0, peakRight = 0.0;
 
-        for (int ch = 0; ch < targetChannels; ++ch) {
+        for (int c = 0; c < targetChannels && c < 2; ++c) {
             float peak = 0.f;
             for (int i = 0; i < nframes; ++i) {
-                if (m_buffers[ch][i] > peak) {
-                    peak = m_buffers[ch][i];
+                if (m_buffers[c][i] > peak) {
+                    peak = m_buffers[c][i];
                 }
             }
-            if (ch == 0) peakLeft = peak;
-            if (ch > 0 || targetChannels == 1) peakRight = peak;
+            if (c == 0) peakLeft = peak;
+            if (c > 0 || targetChannels == 1) peakRight = peak;
         }
 
         m_target->putSamples(nframes, m_buffers);
         m_target->setInputLevels(peakLeft, peakRight);
     }
 
-    auto gain = Gains::gainsFor(m_outputGain, m_outputBalance, 2);
-    
     if (m_source) {
 
         int received = m_source->getSourceSamples(nframes, m_buffers);
-        
-        for (int c = 0; c < sourceChannels; ++c) {
-            for (int i = received; i < nframes; ++i) {
-                tmpbuf[c][i] = 0.f;
+
+        if (received < nframes) {
+            for (int c = 0; c < sourceChannels; ++c) {
+                v_zero(m_buffers[c] + received, nframes - received);
             }
         }
-        
-        peakLeft = 0.0, peakRight = 0.0;
 
-        for (int ch = 0; ch < 2; ++ch) {
-	
-            float peak = 0.0;
+        v_reconfigure_channels_inplace
+            (m_buffers, m_outputChannels, sourceChannels, nframes);
 
-            if (ch < sourceChannels) {
-
-                // PortAudio samples are interleaved
-                for (int i = 0; i < nframes; ++i) {
-                    output[i * 2 + ch] = tmpbuf[ch][i] * gain[ch];
-                    float sample = fabsf(output[i * 2 + ch]);
-                    if (sample > peak) peak = sample;
-                }
-
-            } else if (ch == 1 && sourceChannels == 1) {
-
-                for (int i = 0; i < nframes; ++i) {
-                    output[i * 2 + ch] = tmpbuf[0][i] * gain[ch];
-                    float sample = fabsf(output[i * 2 + ch]);
-                    if (sample > peak) peak = sample;
-                }
-
-            } else { 
-                for (int i = 0; i < nframes; ++i) {
-                    output[i * 2 + ch] = 0;
-                }
-           }
-
-            if (ch == 0) peakLeft = peak;
-            if (ch > 0 || sourceChannels == 1) peakRight = peak;
+        auto gain = Gains::gainsFor(m_outputGain, m_outputBalance, m_outputChannels);
+        for (int c = 0; c < m_outputChannels; ++c) {
+            v_scale(m_buffers[c], gain[c], nframes);
         }
 
+        peakLeft = 0.0, peakRight = 0.0;
+        for (int c = 0; c < m_outputChannels && c < 2; ++c) {
+            float peak = 0.f;
+            for (int i = 0; i < nframes; ++i) {
+                if (m_buffers[c][i] > peak) {
+                    peak = m_buffers[c][i];
+                }
+            }
+            if (c == 0) peakLeft = peak;
+            if (c == 1 || m_outputChannels == 1) peakRight = peak;
+        }
+
+        v_interleave
+            (output, m_buffers, m_outputChannels, nframes);
+        
         m_source->setOutputLevels(peakLeft, peakRight);
 
-    } else {
-        for (int ch = 0; ch < 2; ++ch) {
-            for (int i = 0; i < nframes; ++i) {
-                output[i * 2 + ch] = 0;
-            }
-        }
+    } else if (m_outputChannels > 0) {
+
+        v_zero(output, m_outputChannels * nframes);
     }
 
     return 0;

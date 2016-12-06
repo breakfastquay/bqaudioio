@@ -37,6 +37,9 @@
 #include "ApplicationRecordTarget.h"
 #include "Gains.h"
 
+#include "bqvec/VectorOps.h"
+#include "bqvec/Allocators.h"
+
 #include <iostream>
 #include <cmath>
 #include <climits>
@@ -47,17 +50,21 @@ using namespace std;
 
 namespace breakfastquay {
 
-PulseAudioIO::PulseAudioIO(ApplicationRecordTarget *target,
+PulseAudioIO::PulseAudioIO(Mode mode,
+                           ApplicationRecordTarget *target,
                            ApplicationPlaybackSource *source) :
     SystemAudioIO(target, source),
+    m_mode(mode),
     m_loop(0),
     m_api(0),
     m_context(0),
     m_in(0), 
     m_out(0),
+    m_buffers(0),
+    m_interleaved(0),
+    m_bufferChannels(0),
     m_bufferSize(0),
     m_sampleRate(0),
-    m_paChannels(2),
     m_done(false),
     m_captureReady(false),
     m_playbackReady(false),
@@ -66,8 +73,16 @@ PulseAudioIO::PulseAudioIO(ApplicationRecordTarget *target,
 #ifdef DEBUG_PULSE_AUDIO_IO
     cerr << "PulseAudioIO: Initialising for PulseAudio" << endl;
 #endif
+    
+    if (m_mode == Mode::Playback) {
+        m_target = 0;
+    }
+    if (m_mode == Mode::Record) {
+        m_source = 0;
+    }
 
-    m_name = source->getClientName();
+    m_name = (source ? source->getClientName() :
+              target ? target->getClientName() : "bqaudioio");
 
     m_loop = pa_mainloop_new();
     if (!m_loop) {
@@ -79,14 +94,50 @@ PulseAudioIO::PulseAudioIO(ApplicationRecordTarget *target,
 
     //!!! handle signals how?
 
-    m_bufferSize = 20480;
-    m_sampleRate = 44100;
-    if (m_source && (m_source->getApplicationSampleRate() != 0)) {
-	m_sampleRate = m_source->getApplicationSampleRate();
+    int sourceRate = 0;
+    int targetRate = 0;
+
+    m_outSpec.channels = 2;
+    if (m_source) {
+        sourceRate = m_source->getApplicationSampleRate();
+        if (sourceRate != 0) {
+            m_sampleRate = sourceRate;
+        }
+        if (m_source->getApplicationChannelCount() != 0) {
+            m_outSpec.channels = (uint8_t)m_source->getApplicationChannelCount();
+        }
     }
-    m_spec.rate = m_sampleRate;
-    m_spec.channels = (uint8_t)m_paChannels;
-    m_spec.format = PA_SAMPLE_FLOAT32NE;
+    
+    m_inSpec.channels = 2;
+    if (m_target) {
+        targetRate = m_target->getApplicationSampleRate();
+        if (targetRate != 0) {
+            if (sourceRate != 0 && sourceRate != targetRate) {
+                cerr << "WARNING: PulseAudioIO: Source and target both provide sample rates, but different ones (source " << sourceRate << ", target " << targetRate << ") - using source rate" << endl;
+            } else {
+                m_sampleRate = targetRate;
+            }
+        }
+        if (m_target->getApplicationChannelCount() != 0) {
+            m_inSpec.channels = (uint8_t)m_target->getApplicationChannelCount();
+        }
+    }
+
+    if (m_sampleRate == 0) {
+        m_sampleRate = 44100;
+    }
+
+    m_bufferSize = m_sampleRate / 2; // initially
+    
+    m_inSpec.rate = m_sampleRate;
+    m_outSpec.rate = m_sampleRate;
+    
+    m_inSpec.format = PA_SAMPLE_FLOAT32NE;
+    m_outSpec.format = PA_SAMPLE_FLOAT32NE;
+    
+    m_bufferChannels = std::max(m_inSpec.channels, m_outSpec.channels);
+    m_buffers = allocate_and_zero_channels<float>(m_bufferChannels, m_bufferSize);
+    m_interleaved = allocate_and_zero<float>(m_bufferChannels * m_bufferSize);
 
     m_context = pa_context_new(m_api, m_name.c_str());
     if (!m_context) {
@@ -152,6 +203,9 @@ PulseAudioIO::~PulseAudioIO()
         }
     }
 
+    deallocate_channels(m_buffers, m_bufferChannels);
+    deallocate(m_interleaved);
+    
     cerr << "PulseAudioIO::~PulseAudioIO() done" << endl;
 }
 
@@ -210,13 +264,13 @@ PulseAudioIO::threadRun()
 bool
 PulseAudioIO::isSourceOK() const
 {
-    return (m_context != 0);
+    return (m_context != 0 && m_mode != Mode::Playback);
 }
 
 bool
 PulseAudioIO::isTargetOK() const
 {
-    return (m_context != 0);
+    return (m_context != 0 && m_mode != Mode::Record);
 }
 
 bool
@@ -246,11 +300,32 @@ PulseAudioIO::streamWriteStatic(pa_stream *,
                                 size_t length,
                                 void *data)
 {
-    PulseAudioIO *target = (PulseAudioIO *)data;
+    PulseAudioIO *io = (PulseAudioIO *)data;
 
     if (length > INT_MAX) return;
     
-    target->streamWrite(int(length));
+    io->streamWrite(int(length));
+}
+
+void
+PulseAudioIO::checkBufferCapacity(int channels, int nframes)
+{
+    if (nframes > m_bufferSize ||
+        channels > m_bufferChannels) {
+
+        m_buffers = reallocate_and_zero_extend_channels
+            (m_buffers,
+             m_bufferChannels, m_bufferSize,
+             channels, nframes);
+
+        m_interleaved = reallocate
+            (m_interleaved,
+             m_bufferChannels * m_bufferSize,
+             channels * nframes);
+        
+        m_bufferChannels = channels;
+        m_bufferSize = nframes;
+    }
 }
 
 void
@@ -259,13 +334,16 @@ PulseAudioIO::streamWrite(int requested)
 #ifdef DEBUG_PULSE_AUDIO_IO    
     cout << "PulseAudioIO::streamWrite(" << requested << ")" << endl;
 #endif
-    if (m_done) return;
 
 #ifdef DEBUG_PULSE_AUDIO_IO
     cerr << "PulseAudioIO::streamWrite: locking stream mutex" << endl;
 #endif
+
+    // Pulse is a consumer system with long buffers, this is not a RT
+    // context like the other drivers
     lock_guard<mutex> guard(m_streamMutex);
     if (m_done) return;
+    if (!m_source) return;
 
     pa_usec_t latency = 0;
     int negative = 0;
@@ -274,100 +352,46 @@ PulseAudioIO::streamWrite(int requested)
         if (latframes > 0) m_source->setSystemPlaybackLatency(latframes);
     }
 
-    static float *output = 0;
-    static float **tmpbuf = 0;
-    static int tmpbufch = 0;
-    static int tmpbufsz = 0;
+    int channels = m_outSpec.channels;
+    if (channels == 0) return;
 
-    int sourceChannels = m_source->getApplicationChannelCount();
-    if (sourceChannels == 0) {
-        return;
-    }
+    int nframes = requested / int(channels * sizeof(float));
 
-    int nframes = requested / int(sourceChannels * sizeof(float)); //!!! this should be dividing by how many channels PA thinks it has!
-
-    if (nframes > m_bufferSize) {
-        cerr << "WARNING: PulseAudioIO::streamWrite: nframes " << nframes << " > m_bufferSize " << m_bufferSize << endl;
-    }
+    checkBufferCapacity(channels, nframes);
 
 #ifdef DEBUG_PULSE_AUDIO_IO
     cout << "PulseAudioIO::streamWrite: nframes = " << nframes << endl;
 #endif
 
-    if (!tmpbuf || tmpbufch != sourceChannels || int(tmpbufsz) < nframes) {
-
-	if (tmpbuf) {
-	    for (int i = 0; i < tmpbufch; ++i) {
-		delete[] tmpbuf[i];
-	    }
-	    delete[] tmpbuf;
-	}
-
-        if (output) {
-            delete[] output;
-        }
-
-	tmpbufch = sourceChannels;
-	tmpbufsz = nframes;
-	tmpbuf = new float *[tmpbufch];
-
-	for (int i = 0; i < tmpbufch; ++i) {
-	    tmpbuf[i] = new float[tmpbufsz];
-	}
-
-        output = new float[tmpbufsz * m_paChannels];
-    }
-	
-    int received = m_source->getSourceSamples(nframes, tmpbuf);
+    int received = m_source->getSourceSamples(nframes, m_buffers);
 
     float peakLeft = 0.0, peakRight = 0.0;
-    auto gain = Gains::gainsFor(m_outputGain, m_outputBalance, m_paChannels); 
+    auto gain = Gains::gainsFor(m_outputGain, m_outputBalance, channels); 
 
-    for (int ch = 0; ch < m_paChannels; ++ch) {
-	
-	float peak = 0.0;
-
-	if (ch < sourceChannels) {
-
-	    // PulseAudio samples are interleaved
-	    for (int i = 0; i < nframes; ++i) {
-                if (i < received) {
-                    output[i * m_paChannels + ch] = tmpbuf[ch][i] * gain[ch];
-                    float sample = fabsf(output[i * m_paChannels + ch]);
-                    if (sample > peak) peak = sample;
-                } else {
-                    output[i * m_paChannels + ch] = 0.f;
-                }
-	    }
-
-	} else if (ch == 1 && sourceChannels == 1) {
-
-	    for (int i = 0; i < nframes; ++i) {
-                if (i < received) {
-                    output[i * m_paChannels + ch] = tmpbuf[0][i] * gain[ch];
-                    float sample = fabsf(output[i * m_paChannels + ch]);
-                    if (sample > peak) peak = sample;
-                } else {
-                    output[i * m_paChannels + ch] = 0.f;
-                }
-	    }
-
-	} else {
-	    for (int i = 0; i < nframes; ++i) {
-		output[i * m_paChannels + ch] = 0;
-	    }
-	}
-
-	if (ch == 0) peakLeft = peak;
-	if (ch > 0 || sourceChannels == 1) peakRight = peak;
+    for (int c = 0; c < channels; ++c) {
+        v_scale(m_buffers[c], gain[c], received);
     }
+    
+    for (int c = 0; c < channels && c < 2; ++c) {
+	float peak = 0.f;
+        for (int i = 0; i < received; ++i) {
+            if (m_buffers[c][i] > peak) {
+                peak = m_buffers[c][i];
+            }
+        }
+        if (c == 0) peakLeft = peak;
+        if (c == 1 || channels == 1) peakRight = peak;
+    }
+
+    v_interleave(m_interleaved, m_buffers, channels, received);
 
 #ifdef DEBUG_PULSE_AUDIO_IO
     cerr << "calling pa_stream_write with "
-              << nframes * tmpbufch * sizeof(float) << " bytes" << endl;
+         << received * channels * sizeof(float) << " bytes" << endl;
 #endif
 
-    pa_stream_write(m_out, output, nframes * tmpbufch * sizeof(float),
+    pa_stream_write(m_out, m_interleaved,
+                    received * channels * sizeof(float),
                     0, 0, PA_SEEK_RELATIVE);
 
     m_source->setOutputLevels(peakLeft, peakRight);
@@ -380,9 +404,11 @@ PulseAudioIO::streamReadStatic(pa_stream *,
                                size_t length,
                                void *data)
 {
-    PulseAudioIO *target = (PulseAudioIO *)data;
+    PulseAudioIO *io = (PulseAudioIO *)data;
+    
     if (length > INT_MAX) return;
-    target->streamRead(int(length));
+    
+    io->streamRead(int(length));
 }
 
 void
@@ -397,6 +423,7 @@ PulseAudioIO::streamRead(int available)
 #endif
     lock_guard<mutex> guard(m_streamMutex);
     if (m_done) return;
+    if (!m_target) return;
     
     pa_usec_t latency = 0;
     int negative = 0;
@@ -405,52 +432,25 @@ PulseAudioIO::streamRead(int available)
         if (latframes > 0) m_target->setSystemRecordLatency(latframes);
     }
 
-    static const void *input = 0;
-    static float **tmpbuf = 0;
-    static int tmpbufch = 0;
-    static int tmpbufsz = 0;
+    int channels = m_inSpec.channels;
+    if (channels == 0) return;
 
-    int targetChannels = m_target->getApplicationChannelCount();
-
-    //!!! need to handle mismatches between our and PA's expectations!
-
-    if (targetChannels < 2) targetChannels = 2;
-
-    int nframes = available / int(targetChannels * sizeof(float)); //!!! this should be dividing by how many channels PA thinks it has!
-
-    if (nframes > m_bufferSize) {
-        cerr << "WARNING: PulseAudioIO::streamRead: nframes " << nframes << " > m_bufferSize " << m_bufferSize << endl;
-    }
+    int nframes = available / int(channels * sizeof(float));
 
 #ifdef DEBUG_PULSE_AUDIO_IO
     cout << "PulseAudioIO::streamRead: nframes = " << nframes << endl;
 #endif
 
-    if (!tmpbuf || tmpbufch != targetChannels || int(tmpbufsz) < nframes) {
-
-	if (tmpbuf) {
-	    for (int i = 0; i < tmpbufch; ++i) {
-		delete[] tmpbuf[i];
-	    }
-	    delete[] tmpbuf;
-	}
-
-	tmpbufch = targetChannels;
-	tmpbufsz = nframes;
-	tmpbuf = new float *[tmpbufch];
-
-	for (int i = 0; i < tmpbufch; ++i) {
-	    tmpbuf[i] = new float[tmpbufsz];
-	}
-    }
-	
+    checkBufferCapacity(channels, nframes);
+    
     float peakLeft = 0.0, peakRight = 0.0;
 
     size_t actual = available;
-
+    
+    const void *input = 0;
     pa_stream_peek(m_in, &input, &actual);
 
-    int actualFrames = int(actual) / int(targetChannels * sizeof(float)); //!!! this should be dividing by how many channels PA thinks it has!
+    int actualFrames = int(actual) / int(channels * sizeof(float));
 
     if (actualFrames < nframes) {
         cerr << "WARNING: streamRead: read " << actualFrames << " frames, expected " << nframes << endl;
@@ -458,22 +458,20 @@ PulseAudioIO::streamRead(int available)
     
     const float *finput = (const float *)input;
 
-    for (int ch = 0; ch < targetChannels; ++ch) {
-	
-	float peak = 0.0;
+    v_deinterleave(m_buffers, finput, channels, actualFrames);
 
-        // PulseAudio samples are interleaved
-        for (int i = 0; i < nframes; ++i) {
-            tmpbuf[ch][i] = finput[i * 2 + ch];
-            float sample = fabsf(finput[i * 2 + ch]);
-            if (sample > peak) peak = sample;
+    for (int c = 0; c < channels && c < 2; ++c) {
+	float peak = 0.f;
+        for (int i = 0; i < actualFrames; ++i) {
+            if (m_buffers[c][i] > peak) {
+                peak = m_buffers[c][i];
+            }
         }
-
-	if (ch == 0) peakLeft = peak;
-	if (ch > 0 || targetChannels == 1) peakRight = peak;
+	if (c == 0) peakLeft = peak;
+	if (c > 0 || channels == 1) peakRight = peak;
     }
 
-    m_target->putSamples(nframes, tmpbuf);
+    m_target->putSamples(actualFrames, m_buffers);
     m_target->setInputLevels(peakLeft, peakRight);
 
     pa_stream_drop(m_in);
@@ -524,28 +522,31 @@ PulseAudioIO::streamStateChanged(pa_stream *stream)
 
             pa_usec_t latency = 0;
             int negative = 0;
-            if (pa_stream_get_latency(m_out, &latency, &negative)) {
-                cerr << "PulseAudioIO::streamStateChanged: Failed to query latency" << endl;
-            }
-            cerr << "Latency = " << latency << " usec" << endl;
-            int latframes = latencyFrames(latency);
-            cerr << "that's " << latframes << " frames" << endl;
-
-            const pa_buffer_attr *attr;
-            if (!(attr = pa_stream_get_buffer_attr(m_out))) {
-                cerr << "PulseAudioIO::streamStateChanged: Cannot query stream buffer attributes" << endl;
+            
+            if (m_source) {
                 m_source->setSystemPlaybackSampleRate(m_sampleRate);
-                m_source->setSystemPlaybackLatency(latframes);
-            } else {
-                cerr << "PulseAudioIO::streamStateChanged: stream max length = " << attr->maxlength << endl;
-                int latency = attr->tlength;
-                cerr << "latency = " << latency << endl;
-                m_source->setSystemPlaybackSampleRate(m_sampleRate);
-                m_source->setSystemPlaybackLatency(latframes);
+                m_source->setSystemPlaybackChannelCount(m_outSpec.channels);
+                if (pa_stream_get_latency(m_out, &latency, &negative)) {
+                    cerr << "PulseAudioIO::streamStateChanged: Failed to query latency" << endl;
+                } else {
+                    cerr << "Latency = " << latency << " usec" << endl;
+                    int latframes = latencyFrames(latency);
+                    cerr << "that's " << latframes << " frames" << endl;
+                    m_source->setSystemPlaybackLatency(latframes);
+                }
             }
-
-            cerr << "PulseAudioIO: setting system record sample rate to " << m_sampleRate << endl;
-            m_target->setSystemRecordSampleRate(m_sampleRate);
+            if (m_target) {
+                m_target->setSystemRecordSampleRate(m_sampleRate);
+                m_target->setSystemRecordChannelCount(m_inSpec.channels);
+                if (pa_stream_get_latency(m_out, &latency, &negative)) {
+                    cerr << "PulseAudioIO::streamStateChanged: Failed to query latency" << endl;
+                } else {
+                    cerr << "Latency = " << latency << " usec" << endl;
+                    int latframes = latencyFrames(latency);
+                    cerr << "that's " << latframes << " frames" << endl;
+                    m_target->setSystemRecordLatency(latframes);
+                }
+            }
 
             break;
         }
@@ -553,7 +554,7 @@ PulseAudioIO::streamStateChanged(pa_stream *stream)
         case PA_STREAM_FAILED:
         default:
             cerr << "PulseAudioIO::streamStateChanged: Error: "
-                      << pa_strerror(pa_context_errno(m_context)) << endl;
+                 << pa_strerror(pa_context_errno(m_context)) << endl;
             //!!! do something...
             break;
     }
@@ -662,8 +663,11 @@ PulseAudioIO::contextStateChanged()
             cerr << "PulseAudioIO::contextStateChanged: Ready"
                       << endl;
 
-            m_in = pa_stream_new(m_context, "Capture", &m_spec, 0);
-            assert(m_in); //!!!
+            m_in = pa_stream_new(m_context, "Capture", &m_inSpec, 0);
+            if (!m_in) {
+                cerr << "PulseAudioIO::contextStateChanged: Failed to create capture stream" << endl;
+                return;
+            }
             
             pa_stream_set_state_callback(m_in, streamStateChangedStatic, this);
             pa_stream_set_read_callback(m_in, streamReadStatic, this);
@@ -682,8 +686,11 @@ PulseAudioIO::contextStateChanged()
                 cerr << "PulseAudioIO: Failed to connect record stream" << endl;
             }
 
-            m_out = pa_stream_new(m_context, "Playback", &m_spec, 0);
-            assert(m_out); //!!!
+            m_out = pa_stream_new(m_context, "Playback", &m_outSpec, 0);
+            if (!m_out) {
+                cerr << "PulseAudioIO::contextStateChanged: Failed to create playback stream" << endl;
+                return;
+            }
             
             pa_stream_set_state_callback(m_out, streamStateChangedStatic, this);
             pa_stream_set_write_callback(m_out, streamWriteStatic, this);
@@ -705,14 +712,12 @@ PulseAudioIO::contextStateChanged()
 
         case PA_CONTEXT_TERMINATED:
             cerr << "PulseAudioIO::contextStateChanged: Terminated" << endl;
-            //!!! do something...
             break;
 
         case PA_CONTEXT_FAILED:
         default:
             cerr << "PulseAudioIO::contextStateChanged: Error: "
-                      << pa_strerror(pa_context_errno(m_context)) << endl;
-            //!!! do something...
+                 << pa_strerror(pa_context_errno(m_context)) << endl;
             break;
     }
 
@@ -722,15 +727,25 @@ PulseAudioIO::contextStateChanged()
 }
 
 void
-PulseAudioIO::streamOverflowStatic(pa_stream *, void *)
+PulseAudioIO::streamOverflowStatic(pa_stream *, void *data)
 {
     cerr << "PulseAudioIO::streamOverflowStatic: Overflow!" << endl;
+
+    PulseAudioIO *io = (PulseAudioIO *)data;
+
+    if (io->m_target) io->m_target->audioProcessingOverload();
+    if (io->m_source) io->m_source->audioProcessingOverload();
 }
 
 void
-PulseAudioIO::streamUnderflowStatic(pa_stream *, void *)
+PulseAudioIO::streamUnderflowStatic(pa_stream *, void *data)
 {
     cerr << "PulseAudioIO::streamUnderflowStatic: Underflow!" << endl;
+    
+    PulseAudioIO *io = (PulseAudioIO *)data;
+
+    if (io->m_target) io->m_target->audioProcessingOverload();
+    if (io->m_source) io->m_source->audioProcessingOverload();
 }
 
 

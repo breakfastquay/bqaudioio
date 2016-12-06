@@ -69,6 +69,10 @@ JACKAudioIO::JACKAudioIO(Mode mode,
         m_source = 0;
     }
 
+    std::string clientName =
+        (source ? source->getClientName() :
+         target ? target->getClientName() : "bqaudioio");
+
     JackOptions options = JackNullOption;
     
 #if defined(HAVE_PORTAUDIO) || defined(HAVE_LIBPULSE)
@@ -76,9 +80,7 @@ JACKAudioIO::JACKAudioIO(Mode mode,
 #endif
 
     JackStatus status = JackStatus(0);
-    m_client = jack_client_open(source->getClientName().c_str(),
-                                options, &status);
-
+    m_client = jack_client_open(clientName.c_str(), options, &status);
     if (!m_client) {
         cerr << "ERROR: JACKPlaybackTarget: Failed to connect to JACK server"
              << endl;
@@ -312,47 +314,6 @@ JACKAudioIO::process(jack_nframes_t j_nframes)
     float **outbufs = (float **)alloca(m_outputs.size() * sizeof(float *));
 
     float peakLeft, peakRight;
-    auto gain = Gains::gainsFor(m_outputGain, m_outputBalance, m_outputs.size()); 
-    
-    if (m_source) {
-
-        for (int ch = 0; in_range_for(m_outputs, ch); ++ch) {
-            outbufs[ch] = (float *)jack_port_get_buffer(m_outputs[ch], nframes);
-        }
-        
-	int received = m_source->getSourceSamples(nframes, outbufs);
-
-        peakLeft = 0.0; peakRight = 0.0;
-
-        //!!! vectorisation
-
-        for (int ch = 0; in_range_for(m_outputs, ch); ++ch) {
-
-            float peak = 0.0;
-
-            for (int i = received; i < nframes; ++i) {
-                outbufs[ch][i] = 0.0;
-            }
-        
-            for (int i = 0; i < nframes; ++i) {
-                outbufs[ch][i] *= gain[ch];
-                float sample = fabsf(outbufs[ch][i]);
-                if (sample > peak) peak = sample;
-            }
-
-            if (ch == 0) peakLeft = peak;
-            if (ch > 0 || m_outputs.size() == 1) peakRight = peak;
-        }
-	    
-        m_source->setOutputLevels(peakLeft, peakRight);
-
-    } else {
-	for (int ch = 0; in_range_for(m_outputs, ch); ++ch) {
-	    for (int i = 0; i < nframes; ++i) {
-		outbufs[ch][i] = 0.0;
-	    }
-	}
-    }
 
     if (m_target) {
 
@@ -377,6 +338,47 @@ JACKAudioIO::process(jack_nframes_t j_nframes)
         
 	m_target->setInputLevels(peakLeft, peakRight);
         m_target->putSamples(nframes, inbufs);
+    }
+
+    auto gain = Gains::gainsFor(m_outputGain, m_outputBalance, m_outputs.size()); 
+    
+    if (m_source) {
+
+        for (int ch = 0; in_range_for(m_outputs, ch); ++ch) {
+            outbufs[ch] = (float *)jack_port_get_buffer(m_outputs[ch], nframes);
+        }
+        
+	int received = m_source->getSourceSamples(nframes, outbufs);
+
+        peakLeft = 0.0; peakRight = 0.0;
+
+        for (int ch = 0; in_range_for(m_outputs, ch); ++ch) {
+
+            float peak = 0.0;
+
+            for (int i = received; i < nframes; ++i) {
+                outbufs[ch][i] = 0.0;
+            }
+        
+            for (int i = 0; i < nframes; ++i) {
+                outbufs[ch][i] *= gain[ch];
+                float sample = fabsf(outbufs[ch][i]);
+                if (sample > peak) peak = sample;
+            }
+
+            if (ch == 0) peakLeft = peak;
+            if (ch > 0 || m_outputs.size() == 1) peakRight = peak;
+        }
+	    
+        m_source->setOutputLevels(peakLeft, peakRight);
+
+    } else if (!m_outputs.empty()) {
+        
+	for (int ch = 0; in_range_for(m_outputs, ch); ++ch) {
+	    for (int i = 0; i < nframes; ++i) {
+		outbufs[ch][i] = 0.0;
+	    }
+	}
     }
 
     return 0;

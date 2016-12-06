@@ -69,7 +69,7 @@ protected:
     static PaError openStream(Mode, PaStream **,
                               const PaStreamParameters *,
                               const PaStreamParameters *,
-                              double, unsigned long);
+                              double, unsigned long, void *);
     
     static int processStatic(const void *, void *, unsigned long,
                              const PaStreamCallbackTimeInfo *,
