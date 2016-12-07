@@ -30,9 +30,10 @@ src/AudioFactory.o: ./bqaudioio/AudioFactory.h src/JACKAudioIO.h
 src/AudioFactory.o: src/PortAudioIO.h src/PulseAudioIO.h
 src/SystemPlaybackTarget.o: ./bqaudioio/SystemPlaybackTarget.h
 src/SystemPlaybackTarget.o: ./bqaudioio/Suspendable.h
-src/ResamplerWrapper.o: src/ResamplerWrapper.h
+src/ResamplerWrapper.o: ./bqaudioio/ResamplerWrapper.h
 src/ResamplerWrapper.o: ./bqaudioio/ApplicationPlaybackSource.h
 bqaudioio/SystemPlaybackTarget.o: ./bqaudioio/Suspendable.h
+bqaudioio/ResamplerWrapper.o: ./bqaudioio/ApplicationPlaybackSource.h
 bqaudioio/SystemAudioIO.o: ./bqaudioio/SystemRecordSource.h
 bqaudioio/SystemAudioIO.o: ./bqaudioio/Suspendable.h
 bqaudioio/SystemAudioIO.o: ./bqaudioio/SystemPlaybackTarget.h

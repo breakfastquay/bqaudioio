@@ -33,18 +33,35 @@
 #ifndef RESAMPLER_WRAPPER_H
 #define RESAMPLER_WRAPPER_H
 
+#include "ApplicationPlaybackSource.h"
+
 namespace breakfastquay {
 
-class ApplicationPlaybackSource;
 class Resampler;
 
-class ResamplerWrapper
+class ResamplerWrapper : public ApplicationPlaybackSource
 {
 public:
-    ResamplerWrapper(ApplicationPlaybackSource *source, int targetRate);
+    ResamplerWrapper(ApplicationPlaybackSource *source);
     ~ResamplerWrapper();
 
-    int getSourceSamples(int nframes, float **samples);
+    void changeApplicationSampleRate(int newRate);
+    void reset(); // clear buffers
+    
+    virtual std::string getClientName() const;
+    
+    virtual int getApplicationSampleRate() const;
+    virtual int getApplicationChannelCount() const;
+
+    virtual void setSystemPlaybackBlockSize(int);
+    virtual void setSystemPlaybackSampleRate(int);
+    virtual void setSystemPlaybackChannelCount(int);
+    virtual void setSystemPlaybackLatency(int);
+
+    virtual int getSourceSamples(int nframes, float **samples);
+
+    virtual void setOutputLevels(float peakLeft, float peakRight);
+    virtual void audioProcessingOverload();
 
 private:
     ApplicationPlaybackSource *m_source;

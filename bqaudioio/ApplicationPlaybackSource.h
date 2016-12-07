@@ -63,6 +63,10 @@ public:
      *
      * Return 0 if the application has no central sample rate of its
      * own and is happy to accept the default rate of the device.
+     * 
+     * This should not change during the lifetime of the target or
+     * IO. If you want to handle a changing source sample rate, use a
+     * ResamplerWrapper.
      */
     virtual int getApplicationSampleRate() const = 0;
 
