@@ -37,127 +37,189 @@
 
 #include <iostream>
 
+using std::string;
+using std::vector;
+
 namespace breakfastquay {
 
+vector<string>
+AudioFactory::getImplementationNames()
+{
+    vector<string> names;
+    
+#ifdef HAVE_JACK
+    names.push_back("jack");
+#endif
+
+#ifdef HAVE_LIBPULSE
+    names.push_back("pulse");
+#endif
+
+#ifdef HAVE_PORTAUDIO
+    names.push_back("port");
+#endif
+
+    return names;
+}
+
+string
+AudioFactory::getImplementationDescription(string implementationName)
+{
+    if (implementationName == "") {
+        return "(auto)";
+    }
+    if (implementationName == "jack") {
+        return "JACK Audio Connection Kit";
+    }
+    if (implementationName == "pulse") {
+        return "PulseAudio Server";
+    }
+    if (implementationName == "port") {
+        return "PortAudio Driver";
+    }
+    return "(unknown)";
+}
+
+vector<string>
+AudioFactory::getRecordDeviceNames(string implementationName)
+{
+    if (implementationName == "") {
+        // Can't offer implementation-specific choices as we don't
+        // know which implementation will end up being used
+        return { };
+    }
+    
+#ifdef HAVE_JACK
+    if (implementationName == "jack") {
+        return JACKAudioIO::getRecordDeviceNames();
+    }
+#endif
+
+#ifdef HAVE_LIBPULSE
+    if (implementationName == "pulse") {
+        return PulseAudioIO::getRecordDeviceNames();
+    }
+#endif
+
+#ifdef HAVE_PORTAUDIO
+    if (implementationName == "port") {
+        return PortAudioIO::getRecordDeviceNames();
+    }
+#endif
+
+    return {};
+}
+
+vector<string>
+AudioFactory::getPlaybackDeviceNames(string implementationName)
+{
+    if (implementationName == "") {
+        // Can't offer implementation-specific choices as we don't
+        // know which implementation will end up being used
+        return { };
+    }
+
+#ifdef HAVE_JACK
+    if (implementationName == "jack") {
+        return JACKAudioIO::getPlaybackDeviceNames();
+    }
+#endif
+
+#ifdef HAVE_LIBPULSE
+    if (implementationName == "pulse") {
+        return PulseAudioIO::getPlaybackDeviceNames();
+    }
+#endif
+
+#ifdef HAVE_PORTAUDIO
+    if (implementationName == "port") {
+        return PortAudioIO::getPlaybackDeviceNames();
+    }
+#endif
+
+    return {};
+}
+
+static SystemAudioIO *
+createIO(Mode mode,
+         ApplicationRecordTarget *target,
+         ApplicationPlaybackSource *source,
+         AudioFactory::Preference preference)
+{
+    SystemAudioIO *io = 0;
+    
+#ifdef HAVE_JACK
+    if (preference.implementation == "" || preference.implementation == "jack") {
+        io = new JACKAudioIO(Mode::Duplex, target, source,
+                             preference.recordDevice, preference.playbackDevice);
+        if (io->isOK()) return io;
+        else {
+            std::cerr << "WARNING: AudioFactory::createCallbackIO: Failed to open JACK I/O" << std::endl;
+            delete io;
+        }
+    }
+#endif
+
+#ifdef HAVE_LIBPULSE
+    if (preference.implementation == "" || preference.implementation == "pulse") {
+        io = new PulseAudioIO(Mode::Duplex, target, source,
+                              preference.recordDevice, preference.playbackDevice);
+        if (io->isOK()) return io;
+        else {
+            std::cerr << "WARNING: AudioFactory::createCallbackIO: Failed to open PulseAudio I/O" << std::endl;
+            delete io;
+        }
+    }
+#endif
+
+#ifdef HAVE_PORTAUDIO
+    if (preference.implementation == "" || preference.implementation == "port") {
+        io = new PortAudioIO(Mode::Duplex, target, source,
+                             preference.recordDevice, preference.playbackDevice);
+        if (io->isOK()) return io;
+        else {
+            std::cerr << "WARNING: AudioFactory::createCallbackIO: Failed to open PortAudio I/O" << std::endl;
+            delete io;
+        }
+    }
+#endif
+
+    std::cerr << "WARNING: AudioFactory::createIO: No suitable implementation available" << std::endl;
+    return nullptr;
+}
+
 SystemPlaybackTarget *
-AudioFactory::createCallbackPlayTarget(ApplicationPlaybackSource *source)
+AudioFactory::createCallbackPlayTarget(ApplicationPlaybackSource *source,
+                                       Preference preference)
 {
     if (!source) {
         throw std::logic_error("ApplicationPlaybackSource must be provided");
     }
 
-    SystemPlaybackTarget *target = 0;
-
-#ifdef HAVE_JACK
-    target = new JACKAudioIO(Mode::Playback, 0, source);
-    if (target->isTargetOK()) return target;
-    else {
-	std::cerr << "WARNING: AudioFactory::createCallbackPlayTarget: Failed to open JACK target" << std::endl;
-	delete target;
-    }
-#endif
-
-#ifdef HAVE_LIBPULSE
-    target = new PulseAudioIO(Mode::Playback, 0, source);
-    if (target->isTargetOK()) return target;
-    else {
-	std::cerr << "WARNING: AudioFactory::createCallbackPlayTarget: Failed to open PulseAudio target" << std::endl;
-	delete target;
-    }
-#endif
-
-#ifdef HAVE_PORTAUDIO
-    target = new PortAudioIO(Mode::Playback, 0, source);
-    if (target->isTargetOK()) return target;
-    else {
-	std::cerr << "WARNING: AudioFactory::createCallbackPlayTarget: Failed to open PortAudio target" << std::endl;
-	delete target;
-    }
-#endif
-
-    std::cerr << "WARNING: AudioFactory::createCallbackPlayTarget: No suitable targets available" << std::endl;
-    return 0;
+    return createIO(Mode::Playback, 0, source, preference);
 }
 
 SystemRecordSource *
-AudioFactory::createCallbackRecordSource(ApplicationRecordTarget *target)
+AudioFactory::createCallbackRecordSource(ApplicationRecordTarget *target,
+                                         Preference preference)
 {
     if (!target) {
         throw std::logic_error("ApplicationRecordTarget must be provided");
     }
 
-    SystemRecordSource *source = 0;
-
-#ifdef HAVE_JACK
-    source = new JACKAudioIO(Mode::Record, target, 0);
-    if (source->isSourceOK()) return source;
-    else {
-	std::cerr << "WARNING: AudioFactory::createCallbackRecordSource: Failed to open JACK source" << std::endl;
-	delete source;
-    }
-#endif
-
-#ifdef HAVE_LIBPULSE
-    source = new PulseAudioIO(Mode::Record, target, 0);
-    if (source->isSourceOK()) return source;
-    else {
-	std::cerr << "WARNING: AudioFactory::createCallbackRecordSource: Failed to open PulseAudio source" << std::endl;
-	delete source;
-    }
-#endif
-
-#ifdef HAVE_PORTAUDIO
-    source = new PortAudioIO(Mode::Record, target, 0);
-    if (source->isSourceOK()) return source;
-    else {
-	std::cerr << "WARNING: AudioFactory::createCallbackRecordSource: Failed to open PortAudio source" << std::endl;
-	delete source;
-    }
-#endif
-
-    std::cerr << "WARNING: AudioFactory::createCallbackRecordSource: No suitable sources available" << std::endl;
-    return 0;
+    return createIO(Mode::Record, target, 0, preference);
 }
 
 SystemAudioIO *
 AudioFactory::createCallbackIO(ApplicationRecordTarget *target,
-                               ApplicationPlaybackSource *source)
+                               ApplicationPlaybackSource *source,
+                               Preference preference)
 {
     if (!target || !source) {
         throw std::logic_error("ApplicationRecordTarget and ApplicationPlaybackSource must both be provided");
     }
 
-    SystemAudioIO *io = 0;
-
-#ifdef HAVE_JACK
-    io = new JACKAudioIO(Mode::Duplex, target, source);
-    if (io->isOK()) return io;
-    else {
-	std::cerr << "WARNING: AudioFactory::createCallbackIO: Failed to open JACK I/O" << std::endl;
-	delete io;
-    }
-#endif
-
-#ifdef HAVE_LIBPULSE
-    io = new PulseAudioIO(Mode::Duplex, target, source);
-    if (io->isOK()) return io;
-    else {
-	std::cerr << "WARNING: AudioFactory::createCallbackIO: Failed to open PulseAudio I/O" << std::endl;
-	delete io;
-    }
-#endif
-
-#ifdef HAVE_PORTAUDIO
-    io = new PortAudioIO(Mode::Duplex, target, source);
-    if (io->isOK()) return io;
-    else {
-	std::cerr << "WARNING: AudioFactory::createCallbackIO: Failed to open PortAudio I/O" << std::endl;
-	delete io;
-    }
-#endif
-
-    std::cerr << "WARNING: AudioFactory::createCallbackIO: No suitable I/Os available" << std::endl;
-    return 0;
+    return createIO(Mode::Duplex, target, source, preference);
 }
 
 }

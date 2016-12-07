@@ -43,6 +43,9 @@
 #include <mutex>
 #include <thread>
 
+#include <vector>
+#include <string>
+
 namespace breakfastquay {
 
 class ApplicationRecordTarget;
@@ -53,9 +56,14 @@ class PulseAudioIO : public SystemAudioIO
 public:
     PulseAudioIO(Mode mode,
                  ApplicationRecordTarget *recordTarget,
-                 ApplicationPlaybackSource *playSource);
+                 ApplicationPlaybackSource *playSource,
+                 std::string recordDevice,
+                 std::string playbackDevice);
     virtual ~PulseAudioIO();
 
+    static std::vector<std::string> getRecordDeviceNames();
+    static std::vector<std::string> getPlaybackDeviceNames();
+    
     virtual bool isSourceOK() const;
     virtual bool isSourceReady() const;
     virtual bool isTargetOK() const;

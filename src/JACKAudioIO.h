@@ -51,9 +51,14 @@ class JACKAudioIO : public SystemAudioIO
 public:
     JACKAudioIO(Mode mode,
                 ApplicationRecordTarget *recordTarget,
-		ApplicationPlaybackSource *playSource);
+		ApplicationPlaybackSource *playSource,
+                std::string recordDevice,
+                std::string playbackDevice);
     virtual ~JACKAudioIO();
 
+    static std::vector<std::string> getRecordDeviceNames();
+    static std::vector<std::string> getPlaybackDeviceNames();
+    
     virtual bool isSourceOK() const;
     virtual bool isTargetOK() const;
 
@@ -63,7 +68,7 @@ public:
     virtual double getCurrentTime() const;
     
 protected:
-    void setup();
+    void setup(bool connectRecord, bool connectPlayback);
     int process(jack_nframes_t nframes);
     int xrun();
 

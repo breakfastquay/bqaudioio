@@ -53,9 +53,26 @@ using namespace std;
 
 namespace breakfastquay {
 
+static string defaultConnectionName = "Default Connection";
+static string noConnectionName = "No Connection";
+
+vector<string>
+JACKAudioIO::getRecordDeviceNames()
+{
+    return { defaultConnectionName, noConnectionName };
+}
+
+vector<string>
+JACKAudioIO::getPlaybackDeviceNames()
+{
+    return { defaultConnectionName, noConnectionName };
+}
+
 JACKAudioIO::JACKAudioIO(Mode mode,
                          ApplicationRecordTarget *target,
-			 ApplicationPlaybackSource *source) :
+			 ApplicationPlaybackSource *source,
+                         string recordDevice,
+                         string playbackDevice) :
     SystemAudioIO(target, source),
     m_mode(mode),
     m_client(0),
@@ -98,7 +115,10 @@ JACKAudioIO::JACKAudioIO(Mode mode,
 		  << endl;
     }
 
-    setup();
+    bool connectRecord = (recordDevice != noConnectionName);
+    bool connectPlayback = (playbackDevice != noConnectionName);
+    
+    setup(connectRecord, connectPlayback);
 }
 
 JACKAudioIO::~JACKAudioIO()
@@ -144,7 +164,7 @@ JACKAudioIO::xrunStatic(void *arg)
 }
 
 void
-JACKAudioIO::setup()
+JACKAudioIO::setup(bool connectRecord, bool connectPlayback)
 {
     lock_guard<mutex> guard(m_mutex);
 
@@ -215,10 +235,12 @@ JACKAudioIO::setup()
                 m_source->setSystemPlaybackLatency(range.max);
             }
 
-            if (int(m_outputs.size()) < playPortCount) {
-                jack_connect(m_client,
-                             jack_port_name(port),
-                             playPorts[m_outputs.size()]);
+            if (connectPlayback) {
+                if (int(m_outputs.size()) < playPortCount) {
+                    jack_connect(m_client,
+                                 jack_port_name(port),
+                                 playPorts[m_outputs.size()]);
+                }
             }
 
             m_outputs.push_back(port);
@@ -250,10 +272,12 @@ JACKAudioIO::setup()
                 m_target->setSystemRecordLatency(range.max);
             }
 
-            if (int(m_inputs.size()) < capPortCount) {
-                jack_connect(m_client,
-                             capPorts[m_inputs.size()],
-                             jack_port_name(port));
+            if (connectRecord) {
+                if (int(m_inputs.size()) < capPortCount) {
+                    jack_connect(m_client,
+                                 capPorts[m_inputs.size()],
+                                 jack_port_name(port));
+                }
             }
 
             m_inputs.push_back(port);

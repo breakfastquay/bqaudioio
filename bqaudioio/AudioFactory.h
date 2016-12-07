@@ -32,6 +32,9 @@
 #ifndef BQAUDIOIO_AUDIO_FACTORY_H
 #define BQAUDIOIO_AUDIO_FACTORY_H
 
+#include <vector>
+#include <string>
+
 namespace breakfastquay {
 
 class SystemRecordSource;
@@ -43,10 +46,31 @@ class SystemAudioIO;
 class AudioFactory 
 {
 public:
-    static SystemRecordSource *createCallbackRecordSource(ApplicationRecordTarget *);
-    static SystemPlaybackTarget *createCallbackPlayTarget(ApplicationPlaybackSource *);
+    static std::vector<std::string> getImplementationNames();
+    static std::string getImplementationDescription(std::string implName);
+    static std::vector<std::string> getRecordDeviceNames(std::string implName);
+    static std::vector<std::string> getPlaybackDeviceNames(std::string implName);
+
+    struct Preference {
+        // In all cases an empty string indicates "choose
+        // automatically". This may not be the same as any individual
+        // preference, because it implies potentially trying more than
+        // one implementation if the first doesn't work
+        std::string implementation;
+        std::string recordDevice;
+        std::string playbackDevice;
+        Preference() { }
+    };
+    
+    static SystemRecordSource *createCallbackRecordSource(ApplicationRecordTarget *,
+                                                          Preference);
+    
+    static SystemPlaybackTarget *createCallbackPlayTarget(ApplicationPlaybackSource *,
+                                                          Preference);
+    
     static SystemAudioIO *createCallbackIO(ApplicationRecordTarget *,
-                                           ApplicationPlaybackSource *);
+                                           ApplicationPlaybackSource *,
+                                           Preference);
 };
 
 }

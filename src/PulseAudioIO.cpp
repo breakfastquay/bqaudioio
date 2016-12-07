@@ -50,9 +50,25 @@ using namespace std;
 
 namespace breakfastquay {
 
+static string defaultDeviceName = "Default Device";
+
+vector<string>
+PulseAudioIO::getRecordDeviceNames()
+{
+    return { defaultDeviceName };
+}
+
+vector<string>
+PulseAudioIO::getPlaybackDeviceNames()
+{
+    return { defaultDeviceName };
+}
+
 PulseAudioIO::PulseAudioIO(Mode mode,
                            ApplicationRecordTarget *target,
-                           ApplicationPlaybackSource *source) :
+                           ApplicationPlaybackSource *source,
+                           string /* recordDevice */,
+                           string /* playbackDevice */) :
     SystemAudioIO(target, source),
     m_mode(mode),
     m_loop(0),

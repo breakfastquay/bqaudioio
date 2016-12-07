@@ -40,6 +40,9 @@
 #include "SystemAudioIO.h"
 #include "Mode.h"
 
+#include <vector>
+#include <string>
+
 namespace breakfastquay {
 
 class ApplicationRecordTarget;
@@ -50,9 +53,14 @@ class PortAudioIO : public SystemAudioIO
 public:
     PortAudioIO(Mode mode,
                 ApplicationRecordTarget *recordTarget,
-                ApplicationPlaybackSource *playSource);
+                ApplicationPlaybackSource *playSource,
+                std::string recordDevice,
+                std::string playbackDevice);
     virtual ~PortAudioIO();
 
+    static std::vector<std::string> getRecordDeviceNames();
+    static std::vector<std::string> getPlaybackDeviceNames();
+    
     virtual bool isSourceOK() const;
     virtual bool isTargetOK() const;
 
