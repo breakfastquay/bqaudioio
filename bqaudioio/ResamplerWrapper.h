@@ -73,7 +73,11 @@ private:
     Resampler *m_resampler;
 
     float **m_in;
-    int m_insize;
+    int m_inSize;
+    float **m_resampled;
+    int m_resampledSize;
+    int m_resampledFill;
+    float **m_ptrs;
 
     void setupBuffersFor(int reqsize);
 };

@@ -50,7 +50,11 @@ ResamplerWrapper::ResamplerWrapper(ApplicationPlaybackSource *source) :
     m_sourceRate(0),
     m_resampler(0),
     m_in(0),
-    m_insize(0)
+    m_inSize(0),
+    m_resampled(0),
+    m_resampledSize(0),
+    m_resampledFill(0),
+    m_ptrs(0)
 {
     m_sourceRate = m_source->getApplicationSampleRate();
 
@@ -61,14 +65,17 @@ ResamplerWrapper::ResamplerWrapper(ApplicationPlaybackSource *source) :
     
     m_channels = m_source->getApplicationChannelCount();
     m_resampler = new Resampler(Resampler::FastestTolerable, m_channels);
+    m_ptrs = new float *[m_channels];
     setupBuffersFor(10240);
 }
 
 ResamplerWrapper::~ResamplerWrapper()
 {
     delete m_resampler;
+    delete[] m_ptrs;
     if (m_in) {
 	deallocate_channels(m_in, m_channels);
+	deallocate_channels(m_resampled, m_channels);
     }
 }
 
@@ -76,12 +83,7 @@ void
 ResamplerWrapper::changeApplicationSampleRate(int newRate)
 {
     m_sourceRate = newRate;
-}
-
-void
-ResamplerWrapper::reset()
-{
-    if (m_resampler) m_resampler->reset();
+    setupBuffersFor(10240);
 }
 
 std::string
@@ -146,9 +148,18 @@ ResamplerWrapper::audioProcessingOverload()
     m_source->audioProcessingOverload();
 }
 
+void
+ResamplerWrapper::reset()
+{
+    if (m_resampler) m_resampler->reset();
+    m_resampledFill = 0;
+}
+
 int
 ResamplerWrapper::getSourceSamples(int nframes, float **samples)
 {
+    cerr << "ResamplerWrapper::getSourceSamples(" << nframes << "): source rate = " << m_sourceRate << ", target rate = " << m_targetRate << ", channels = " << m_channels << endl;
+    
     setupBuffersFor(nframes);
 
     if (m_sourceRate == m_targetRate) {
@@ -157,32 +168,80 @@ ResamplerWrapper::getSourceSamples(int nframes, float **samples)
 
     double ratio = double(m_targetRate) / double(m_sourceRate);
 
-    int req = int(nframes / ratio);
+    int reqResampled = nframes - m_resampledFill + 1;
+    int req = int(round(reqResampled / ratio));
     int received = m_source->getSourceSamples(req, m_in);
-
-    if (received < req) {
-	for (int i = 0; i < m_channels; ++i) {
-	    v_zero(m_in + received, req - received);
-	}
+    
+    for (int i = 0; i < m_channels; ++i) {
+        m_ptrs[i] = m_resampled[i] + m_resampledFill;
     }
 
-    //!!! todo: manage the 1-sample rounding errors
-    
-    return m_resampler->resample(m_in, samples, req, ratio);
+    cerr << "ResamplerWrapper: nframes = " << nframes << ", ratio = " << ratio << endl;
+    cerr << "ResamplerWrapper: m_inSize = " << m_inSize << ", m_resampledSize = "
+         << m_resampledSize << ", m_resampledFill = " << m_resampledFill << endl;
+    cerr << "ResamplerWrapper: reqResampled = " << reqResampled << ", req = "
+         << req << ", received = " << received << endl;
+
+    if (received > 0) {
+
+        int resampled = m_resampler->resample(m_in, m_ptrs, received, ratio);
+        m_resampledFill += resampled;
+
+        cerr << "ResamplerWrapper: resampled = " << resampled << ", m_resampledFill now = " << m_resampledFill << endl;
+    }
+            
+    if (m_resampledFill < nframes) {
+	for (int i = 0; i < m_channels; ++i) {
+	    v_zero(m_resampled[i] + m_resampledFill, nframes - m_resampledFill);
+	}
+        m_resampledFill = nframes;
+    }
+
+    v_copy_channels(samples, m_resampled, m_channels, nframes);
+
+    if (m_resampledFill > nframes) {
+        for (int i = 0; i < m_channels; ++i) {
+            m_ptrs[i] = m_resampled[i] + nframes;
+        }
+        v_move_channels(m_resampled, m_ptrs, m_channels, m_resampledFill - nframes);
+    }
+
+    m_resampledFill -= nframes;
+
+    cerr << "ResamplerWrapper: m_resampledFill now = " << m_resampledFill << endl;
+
+    return nframes;
 }
 
 void
-ResamplerWrapper::setupBuffersFor(int reqsize)
+ResamplerWrapper::setupBuffersFor(int nframes)
 {
     if (m_sourceRate == m_targetRate) return;
 
+    cerr << "ResamplerWrapper::setupBuffersFor: Source rate "
+         << m_sourceRate << " -> target rate " << m_targetRate << endl;
+
+    int slack = 100;
     double ratio = double(m_targetRate) / double(m_sourceRate);
-    int insize = int(reqsize / ratio) + 1;
-    if (insize > m_insize) {
-	reallocate_and_zero_extend_channels(m_in,
-					    m_channels, m_insize,
-					    m_channels, insize);
-	m_insize = insize;
+    int newResampledSize = nframes + slack;
+    int newInSize = int(newResampledSize / ratio);
+
+    cerr << "newResampledSize = " << newResampledSize << ", newInSize = " << newInSize << endl;
+    
+    if (!m_resampled || newResampledSize > m_resampledSize) {
+        m_resampled = reallocate_and_zero_extend_channels
+            (m_resampled,
+             m_channels, m_resampledSize,
+             m_channels, newResampledSize);
+        m_resampledSize = newResampledSize;
+    }
+
+    if (!m_in || newInSize > m_inSize) {
+	m_in = reallocate_and_zero_extend_channels
+            (m_in,
+             m_channels, m_inSize,
+             m_channels, newInSize);
+	m_inSize = newInSize;
     }
 }
 
