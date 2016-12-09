@@ -132,13 +132,23 @@ JACKAudioIO::~JACKAudioIO()
 bool
 JACKAudioIO::isSourceOK() const
 {
-    return (m_client != 0 && m_mode != Mode::Playback);
+    if (m_mode == Mode::Playback) {
+        // record source is irrelevant in playback mode
+        return true;
+    } else {
+        return (m_client != 0);
+    }
 }
 
 bool
 JACKAudioIO::isTargetOK() const
 {
-    return (m_client != 0 && m_mode != Mode::Record);
+    if (m_mode == Mode::Record) {
+        // playback target is irrelevant in record mode
+        return true;
+    } else {
+        return (m_client != 0);
+    }
 }
 
 double

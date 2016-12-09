@@ -278,13 +278,23 @@ PulseAudioIO::threadRun()
 bool
 PulseAudioIO::isSourceOK() const
 {
-    return (m_context != 0 && m_mode != Mode::Playback);
+    if (m_mode == Mode::Playback) {
+        // record source is irrelevant in playback mode
+        return true;
+    } else {
+        return (m_context != 0);
+    }
 }
 
 bool
 PulseAudioIO::isTargetOK() const
 {
-    return (m_context != 0 && m_mode != Mode::Record);
+    if (m_mode == Mode::Record) {
+        // playback target is irrelevant in record mode
+        return true;
+    } else {
+        return (m_context != 0);
+    }
 }
 
 bool
