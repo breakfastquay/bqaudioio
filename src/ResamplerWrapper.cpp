@@ -184,7 +184,11 @@ ResamplerWrapper::getSourceSamples(int nframes, float **samples)
 
     if (received > 0) {
 
-        int resampled = m_resampler->resample(m_in, m_ptrs, received, ratio);
+        int resampled = m_resampler->resample
+            (m_ptrs, m_resampledSize - m_resampledFill,
+             m_in, received,
+             ratio);
+
         m_resampledFill += resampled;
 
         cerr << "ResamplerWrapper: resampled = " << resampled << ", m_resampledFill now = " << m_resampledFill << endl;
