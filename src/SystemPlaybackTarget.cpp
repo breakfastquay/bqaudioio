@@ -36,7 +36,8 @@ namespace breakfastquay {
 
 SystemPlaybackTarget::SystemPlaybackTarget(ApplicationPlaybackSource *source) :
     m_source(source),
-    m_outputGain(1.0)
+    m_outputGain(1.0),
+    m_outputBalance(0.0)
 {
 }
 
