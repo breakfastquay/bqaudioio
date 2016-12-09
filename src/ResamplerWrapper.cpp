@@ -40,6 +40,8 @@
 
 #include <iostream>
 
+//#define DEBUG_RESAMPLER_WRAPPER 1
+
 using namespace std;
 
 namespace breakfastquay {
@@ -156,7 +158,9 @@ ResamplerWrapper::reset()
 int
 ResamplerWrapper::getSourceSamples(int nframes, float **samples)
 {
+#ifdef DEBUG_RESAMPLER_WRAPPER
     cerr << "ResamplerWrapper::getSourceSamples(" << nframes << "): source rate = " << m_sourceRate << ", target rate = " << m_targetRate << ", channels = " << m_channels << endl;
+#endif
     
     setupBuffersFor(nframes);
 
@@ -172,18 +176,20 @@ ResamplerWrapper::getSourceSamples(int nframes, float **samples)
     double ratio = double(m_targetRate) / double(m_sourceRate);
 
     int reqResampled = nframes - m_resampledFill + 1;
-    int req = int(round(reqResampled / ratio));
+    int req = int(round(reqResampled / ratio)) + 1;
     int received = m_source->getSourceSamples(req, m_in);
     
     for (int i = 0; i < m_channels; ++i) {
         m_ptrs[i] = m_resampled[i] + m_resampledFill;
     }
 
+#ifdef DEBUG_RESAMPLER_WRAPPER
     cerr << "ResamplerWrapper: nframes = " << nframes << ", ratio = " << ratio << endl;
     cerr << "ResamplerWrapper: m_inSize = " << m_inSize << ", m_resampledSize = "
          << m_resampledSize << ", m_resampledFill = " << m_resampledFill << endl;
     cerr << "ResamplerWrapper: reqResampled = " << reqResampled << ", req = "
          << req << ", received = " << received << endl;
+#endif
 
     if (received > 0) {
 
@@ -194,7 +200,9 @@ ResamplerWrapper::getSourceSamples(int nframes, float **samples)
 
         m_resampledFill += resampled;
 
+#ifdef DEBUG_RESAMPLER_WRAPPER
         cerr << "ResamplerWrapper: resampled = " << resampled << ", m_resampledFill now = " << m_resampledFill << endl;
+#endif
     }
             
     if (m_resampledFill < nframes) {
@@ -215,7 +223,9 @@ ResamplerWrapper::getSourceSamples(int nframes, float **samples)
 
     m_resampledFill -= nframes;
 
+#ifdef DEBUG_RESAMPLER_WRAPPER
     cerr << "ResamplerWrapper: m_resampledFill now = " << m_resampledFill << " and returning nframes = " << nframes << endl;
+#endif
 
     return nframes;
 }
@@ -226,15 +236,22 @@ ResamplerWrapper::setupBuffersFor(int nframes)
     if (m_sourceRate == 0) return;
     if (m_sourceRate == m_targetRate) return;
 
+#ifdef DEBUG_RESAMPLER_WRAPPER
     cerr << "ResamplerWrapper::setupBuffersFor: Source rate "
          << m_sourceRate << " -> target rate " << m_targetRate << endl;
+#endif
 
     int slack = 100;
     double ratio = double(m_targetRate) / double(m_sourceRate);
+    if (ratio > 50.0) {
+        slack = int(ratio * 2);
+    }
     int newResampledSize = nframes + slack;
     int newInSize = int(newResampledSize / ratio);
 
+#ifdef DEBUG_RESAMPLER_WRAPPER
     cerr << "newResampledSize = " << newResampledSize << ", newInSize = " << newInSize << endl;
+#endif
     
     if (!m_resampled || newResampledSize > m_resampledSize) {
         m_resampled = reallocate_and_zero_extend_channels
