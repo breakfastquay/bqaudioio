@@ -131,10 +131,7 @@ ResamplerWrapper::setSystemPlaybackChannelCount(int c)
 void
 ResamplerWrapper::setSystemPlaybackLatency(int latency)
 {
-    if (m_targetRate > 0) {
-        m_source->setSystemPlaybackLatency
-            ((latency * m_sourceRate) / m_targetRate);
-    }
+    m_source->setSystemPlaybackLatency(latency);
 }
 
 void
