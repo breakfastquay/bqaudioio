@@ -75,6 +75,9 @@ protected:
     SystemRecordSource(ApplicationRecordTarget *target);
 
     ApplicationRecordTarget *m_target;
+
+    SystemRecordSource(const SystemRecordSource &)=delete;
+    SystemRecordSource &operator=(const SystemRecordSource &)=delete;
 };
 
 }

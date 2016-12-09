@@ -76,6 +76,9 @@ protected:
                   ApplicationPlaybackSource *source) :
         SystemRecordSource(target),
         SystemPlaybackTarget(source) { }
+
+    SystemAudioIO(const SystemAudioIO &)=delete;
+    SystemAudioIO &operator=(const SystemAudioIO &)=delete;
 };
 
 }

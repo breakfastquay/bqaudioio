@@ -71,6 +71,10 @@ public:
     static SystemAudioIO *createCallbackIO(ApplicationRecordTarget *,
                                            ApplicationPlaybackSource *,
                                            Preference);
+
+private:
+    AudioFactory(const AudioFactory &)=delete;
+    AudioFactory &operator=(const AudioFactory &)=delete;
 };
 
 }

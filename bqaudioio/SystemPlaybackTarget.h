@@ -108,6 +108,9 @@ protected:
     ApplicationPlaybackSource *m_source;
     float m_outputGain;
     float m_outputBalance;
+
+    SystemPlaybackTarget(const SystemPlaybackTarget &)=delete;
+    SystemPlaybackTarget &operator=(const SystemPlaybackTarget &)=delete;
 };
 
 }

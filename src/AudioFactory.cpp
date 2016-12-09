@@ -150,7 +150,7 @@ createIO(Mode mode,
     
 #ifdef HAVE_JACK
     if (preference.implementation == "" || preference.implementation == "jack") {
-        io = new JACKAudioIO(Mode::Duplex, target, source,
+        io = new JACKAudioIO(mode, target, source,
                              preference.recordDevice, preference.playbackDevice);
         if (io->isOK()) return io;
         else {
@@ -162,7 +162,7 @@ createIO(Mode mode,
 
 #ifdef HAVE_LIBPULSE
     if (preference.implementation == "" || preference.implementation == "pulse") {
-        io = new PulseAudioIO(Mode::Duplex, target, source,
+        io = new PulseAudioIO(mode, target, source,
                               preference.recordDevice, preference.playbackDevice);
         if (io->isOK()) return io;
         else {
@@ -174,7 +174,7 @@ createIO(Mode mode,
 
 #ifdef HAVE_PORTAUDIO
     if (preference.implementation == "" || preference.implementation == "port") {
-        io = new PortAudioIO(Mode::Duplex, target, source,
+        io = new PortAudioIO(mode, target, source,
                              preference.recordDevice, preference.playbackDevice);
         if (io->isOK()) return io;
         else {

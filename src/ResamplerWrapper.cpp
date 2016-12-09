@@ -58,10 +58,11 @@ ResamplerWrapper::ResamplerWrapper(ApplicationPlaybackSource *source) :
 {
     m_sourceRate = m_source->getApplicationSampleRate();
 
-    if (!m_sourceRate) {
-        cerr << "ERROR: ResamplerWrapper: Application must specify non-zero sample rate when using a ResamplerWrapper" << endl;
-        throw std::logic_error("Non-zero sample rate expected");
-    }
+    // Note, m_sourceRate might be zero if the application is happy to
+    // allow the device to be opened at any rate. We can't actually
+    // work with a zero source rate, but the application may change it
+    // through a call to changeApplicationSampleRate() before playback
+    // begins, so we have to allow this at this point.
     
     m_channels = m_source->getApplicationChannelCount();
     m_resampler = new Resampler(Resampler::FastestTolerable, m_channels);
@@ -118,7 +119,7 @@ void
 ResamplerWrapper::setSystemPlaybackSampleRate(int rate)
 {
     m_targetRate = rate;
-    m_source->setSystemPlaybackSampleRate(m_sourceRate);
+    m_source->setSystemPlaybackSampleRate(m_targetRate);
 }
 
 void
@@ -162,6 +163,11 @@ ResamplerWrapper::getSourceSamples(int nframes, float **samples)
     
     setupBuffersFor(nframes);
 
+    if (m_sourceRate == 0) {
+        v_zero_channels(samples, m_channels, nframes);
+        return nframes;
+    }
+    
     if (m_sourceRate == m_targetRate) {
 	return m_source->getSourceSamples(nframes, samples);
     }
@@ -220,6 +226,7 @@ ResamplerWrapper::getSourceSamples(int nframes, float **samples)
 void
 ResamplerWrapper::setupBuffersFor(int nframes)
 {
+    if (m_sourceRate == 0) return;
     if (m_sourceRate == m_targetRate) return;
 
     cerr << "ResamplerWrapper::setupBuffersFor: Source rate "

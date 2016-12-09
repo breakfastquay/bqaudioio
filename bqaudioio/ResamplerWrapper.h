@@ -42,11 +42,30 @@ class Resampler;
 class ResamplerWrapper : public ApplicationPlaybackSource
 {
 public:
+    /**
+     * Create a wrapper around the given ApplicationPlaybackSource,
+     * implementing another ApplicationPlaybackSource interface that
+     * draws from the same source data but resampling to a playback
+     * target's expected sample rate automatically.
+     */
     ResamplerWrapper(ApplicationPlaybackSource *source);
     ~ResamplerWrapper();
 
+    /**
+     * Call this (e.g. from the wrapped ApplicationPlaybackSource) to
+     * indicate a change in the sample rate that we should be
+     * resampling from.
+     *
+     * (The wrapped ApplicationPlaybackSource should not change the
+     * value it returns from getApplicationSampleRate(), as the API
+     * requires that this be fixed.)
+     */
     void changeApplicationSampleRate(int newRate);
-    void reset(); // clear buffers
+
+    /**
+     * Clear resampler buffers.
+     */
+    void reset();
     
     virtual std::string getClientName() const;
     
@@ -80,6 +99,9 @@ private:
     float **m_ptrs;
 
     void setupBuffersFor(int reqsize);
+
+    ResamplerWrapper(const ResamplerWrapper &)=delete;
+    ResamplerWrapper &operator=(const ResamplerWrapper &)=delete;
 };
 
 }
