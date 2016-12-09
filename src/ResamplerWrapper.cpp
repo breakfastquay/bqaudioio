@@ -215,7 +215,7 @@ ResamplerWrapper::getSourceSamples(int nframes, float **samples)
 
     m_resampledFill -= nframes;
 
-    cerr << "ResamplerWrapper: m_resampledFill now = " << m_resampledFill << endl;
+    cerr << "ResamplerWrapper: m_resampledFill now = " << m_resampledFill << " and returning nframes = " << nframes << endl;
 
     return nframes;
 }
