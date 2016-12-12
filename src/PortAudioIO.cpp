@@ -97,25 +97,36 @@ enableRT() { // on current thread
     return false;
 }
 
+static bool paio_initialised = false;
+static bool paio_working = false;
+static std::mutex paio_init_mutex;
+
 static bool initialise() {
 
-    static bool initialised = false;
-    static bool working = false;
+    std::lock_guard<std::mutex> guard(paio_init_mutex);
 
-    static std::mutex initMutex;
-    std::lock_guard<std::mutex> guard(initMutex);
-
-    if (!initialised) {
+    if (!paio_initialised) {
         PaError err = Pa_Initialize();
-        initialised = true;
+        paio_initialised = true;
         if (err != paNoError) {
             cerr << "ERROR: PortAudioIO: Failed to initialize PortAudio" << endl;
+            paio_working = false;
         } else {
-            working = true;
+            paio_working = true;
         }
     }
 
-    return working;
+    return paio_working;
+}
+
+static void deinitialise() {
+
+    std::lock_guard<std::mutex> guard(paio_init_mutex);
+
+    if (paio_initialised && paio_working) {
+	Pa_Terminate();
+        paio_initialised = false;
+    }
 }
 
 static
@@ -128,16 +139,25 @@ getDeviceNames(bool record)
     
     vector<string> names;
     PaDeviceIndex count = Pa_GetDeviceCount();
+
+    if (count < 0) {
+        // error
+        cerr << "PortAudioIO: error in retrieving device list: "
+             << Pa_GetErrorText(count) << endl;
+        return names;
+    }
+    
     cerr << "PortAudioIO: have " << count << " device(s)" << endl;
+    
     for (int i = 0; i < count; ++i) {
         const PaDeviceInfo *info = Pa_GetDeviceInfo(i);
-        /*
+
         cerr << "PortAudioIO: device " << i << " of " << count << ":" << endl;
         cerr << "name = \"" << info->name << "\"" << endl;
         cerr << "maxInputChannels = " << info->maxInputChannels << endl;
         cerr << "maxOutputChannels = " << info->maxOutputChannels << endl;
         cerr << "defaultSampleRate = " << info->defaultSampleRate << endl;
-        */
+
         if (record) {
             if (info->maxInputChannels > 0) {
                 names.push_back(info->name);
@@ -155,8 +175,15 @@ static
 PaDeviceIndex
 getDeviceIndex(string name, bool record)
 {
+    cerr << "getDeviceIndex: name = \"" << name << "\", record = " << record
+         << endl;
+    
     if (name != "") {
         PaDeviceIndex count = Pa_GetDeviceCount();
+        if (count < 0) {
+            cerr << "PortAudioIO: error in retrieving device index: "
+                 << Pa_GetErrorText(count) << endl;
+        }
         for (int i = 0; i < count; ++i) {
             const PaDeviceInfo *info = Pa_GetDeviceInfo(i);
             if (record) {
@@ -230,7 +257,9 @@ PortAudioIO::PortAudioIO(Mode mode,
     op.device = getDeviceIndex(playbackDevice, false);
 
     const PaDeviceInfo *outInfo = Pa_GetDeviceInfo(op.device);
-    m_sampleRate = outInfo->defaultSampleRate;
+    if (outInfo) {
+        m_sampleRate = outInfo->defaultSampleRate;
+    }
 
     m_inputChannels = 2;
     m_outputChannels = 2;
@@ -311,7 +340,7 @@ PortAudioIO::PortAudioIO(Mode mode,
 	cerr << "ERROR: PortAudioIO: Failed to open PortAudio stream: "
              << Pa_GetErrorText(err) << endl;
 	m_stream = 0;
-	Pa_Terminate();
+        deinitialise();
 	return;
     }
 
@@ -323,16 +352,6 @@ PortAudioIO::PortAudioIO(Mode mode,
 
     if (enableRT(m_stream)) {
         m_prioritySet = true;
-    }
-
-    err = Pa_StartStream(m_stream);
-
-    if (err != paNoError) {
-	cerr << "ERROR: PortAudioIO: Failed to start PortAudio stream" << endl;
-	Pa_CloseStream(m_stream);
-	m_stream = 0;
-	Pa_Terminate();
-	return;
     }
 
     cerr << "PortAudioIO: block size " << m_bufferSize << endl;
@@ -353,23 +372,39 @@ PortAudioIO::PortAudioIO(Mode mode,
 
     m_bufferChannels = std::max(m_inputChannels, m_outputChannels);
     m_buffers = allocate_and_zero_channels<float>(m_bufferChannels, m_bufferSize);
+
+    err = Pa_StartStream(m_stream);
+
+    if (err != paNoError) {
+	cerr << "ERROR: PortAudioIO: Failed to start PortAudio stream" << endl;
+	Pa_CloseStream(m_stream);
+	m_stream = 0;
+        deinitialise();
+	return;
+    }
 }
 
 PortAudioIO::~PortAudioIO()
 {
     if (m_stream) {
 	PaError err;
-        err = Pa_AbortStream(m_stream);
-	if (err != paNoError) {
-	    cerr << "ERROR: PortAudioIO: Failed to abort PortAudio stream" << endl;
+        if (!m_suspended) {
+            err = Pa_StopStream(m_stream);
+            if (err != paNoError) {
+                cerr << "ERROR: PortAudioIO: Failed to stop PortAudio stream" << endl;
+                err = Pa_AbortStream(m_stream);
+                if (err != paNoError) {
+                    cerr << "ERROR: PortAudioIO: Failed to abort PortAudio stream" << endl;
+                }
+            }
 	}
 	err = Pa_CloseStream(m_stream);
 	if (err != paNoError) {
 	    cerr << "ERROR: PortAudioIO: Failed to close PortAudio stream" << endl;
 	}
-	Pa_Terminate();
-
         deallocate_channels(m_buffers, m_bufferChannels);
+        deinitialise();
+        cerr << "PortAudioIO: terminated" << endl;
     }
 }
 
@@ -510,12 +545,12 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
         m_bufferSize = nframes;
     }
     
-    float *input = (float *)inputBuffer;
+    const float *input = (const float *)inputBuffer;
     float *output = (float *)outputBuffer;
 
     float peakLeft, peakRight;
 
-    if (m_target) {
+    if (m_target && input) {
 
         v_deinterleave
             (m_buffers, input, m_inputChannels, nframes);
@@ -540,7 +575,7 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
         m_target->setInputLevels(peakLeft, peakRight);
     }
 
-    if (m_source) {
+    if (m_source && output) {
 
         int received = m_source->getSourceSamples(nframes, m_buffers);
 
