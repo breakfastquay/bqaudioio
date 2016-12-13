@@ -156,7 +156,7 @@ ResamplerWrapper::reset()
 }
 
 int
-ResamplerWrapper::getSourceSamples(int nframes, float **samples)
+ResamplerWrapper::getSourceSamples(float *const *samples, int nchannels, int nframes)
 {
 #ifdef DEBUG_RESAMPLER_WRAPPER
     cerr << "ResamplerWrapper::getSourceSamples(" << nframes << "): source rate = " << m_sourceRate << ", target rate = " << m_targetRate << ", channels = " << m_channels << endl;
@@ -165,19 +165,25 @@ ResamplerWrapper::getSourceSamples(int nframes, float **samples)
     setupBuffersFor(nframes);
 
     if (m_sourceRate == 0) {
-        v_zero_channels(samples, m_channels, nframes);
+        v_zero_channels(samples, nchannels, nframes);
         return nframes;
     }
     
+    if (nchannels != m_channels) {
+        cerr << "nchannels = " << nchannels << ", m_channels = " << m_channels << endl;
+        throw std::logic_error("Different number of channels requested than ResamplerWrapper declared");
+    }
+    
     if (m_sourceRate == m_targetRate) {
-	return m_source->getSourceSamples(nframes, samples);
+	return m_source->getSourceSamples(samples, nchannels, nframes);
     }
 
     double ratio = double(m_targetRate) / double(m_sourceRate);
 
     int reqResampled = nframes - m_resampledFill + 1;
     int req = int(round(reqResampled / ratio)) + 1;
-    int received = m_source->getSourceSamples(req, m_in);
+
+    int received = m_source->getSourceSamples(m_in, m_channels, req);
     
     for (int i = 0; i < m_channels; ++i) {
         m_ptrs[i] = m_resampled[i] + m_resampledFill;

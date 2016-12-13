@@ -77,7 +77,7 @@ public:
     virtual void setSystemPlaybackChannelCount(int);
     virtual void setSystemPlaybackLatency(int);
 
-    virtual int getSourceSamples(int nframes, float **samples);
+    virtual int getSourceSamples(float *const *samples, int nchannels, int nframes);
 
     virtual void setOutputLevels(float peakLeft, float peakRight);
     virtual void audioProcessingOverload();

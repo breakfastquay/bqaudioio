@@ -88,6 +88,8 @@ protected:
     Mode m_mode;
     int m_bufferSize;
     double m_sampleRate;
+    int m_sourceChannels;
+    int m_targetChannels;
     int m_inputChannels;
     int m_outputChannels;
     int m_inputLatency;

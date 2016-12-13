@@ -332,22 +332,20 @@ PulseAudioIO::streamWriteStatic(pa_stream *,
 }
 
 void
-PulseAudioIO::checkBufferCapacity(int channels, int nframes)
+PulseAudioIO::checkBufferCapacity(int nframes)
 {
-    if (nframes > m_bufferSize ||
-        channels > m_bufferChannels) {
+    if (nframes > m_bufferSize) {
 
         m_buffers = reallocate_and_zero_extend_channels
             (m_buffers,
              m_bufferChannels, m_bufferSize,
-             channels, nframes);
+             m_bufferChannels, nframes);
 
         m_interleaved = reallocate
             (m_interleaved,
              m_bufferChannels * m_bufferSize,
-             channels * nframes);
+             m_bufferChannels * nframes);
         
-        m_bufferChannels = channels;
         m_bufferSize = nframes;
     }
 }
@@ -381,13 +379,13 @@ PulseAudioIO::streamWrite(int requested)
 
     int nframes = requested / int(channels * sizeof(float));
 
-    checkBufferCapacity(channels, nframes);
+    checkBufferCapacity(nframes);
 
 #ifdef DEBUG_PULSE_AUDIO_IO
     cerr << "PulseAudioIO::streamWrite: nframes = " << nframes << endl;
 #endif
 
-    int received = m_source->getSourceSamples(nframes, m_buffers);
+    int received = m_source->getSourceSamples(m_buffers, channels, nframes);
     
     if (received < nframes) {
         for (int c = 0; c < channels; ++c) {
@@ -471,7 +469,7 @@ PulseAudioIO::streamRead(int available)
     cerr << "PulseAudioIO::streamRead: nframes = " << nframes << endl;
 #endif
 
-    checkBufferCapacity(channels, nframes);
+    checkBufferCapacity(nframes);
     
     float peakLeft = 0.0, peakRight = 0.0;
 
@@ -501,7 +499,7 @@ PulseAudioIO::streamRead(int available)
 	if (c > 0 || channels == 1) peakRight = peak;
     }
 
-    m_target->putSamples(actualFrames, m_buffers);
+    m_target->putSamples(m_buffers, channels, actualFrames);
     m_target->setInputLevels(peakLeft, peakRight);
 
     pa_stream_drop(m_in);

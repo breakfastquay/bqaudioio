@@ -121,7 +121,7 @@ protected:
 
     bool m_suspended;
 
-    void checkBufferCapacity(int channels, int nframes);
+    void checkBufferCapacity(int nframes);
     
     PulseAudioIO(const PulseAudioIO &)=delete;
     PulseAudioIO &operator=(const PulseAudioIO &)=delete;

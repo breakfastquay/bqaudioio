@@ -74,10 +74,8 @@ public:
      * call to setSystemPlaybackChannelCount and will mixdown as
      * appropriate.
      *
-     * This must not be zero and must not change during the lifetime
-     * of the source or IO, as it is used (regardless of the target
-     * channel count) as the number of channel buffers in the
-     * putSamples callback.
+     * This must not be zero and is not expected to change during the
+     * lifetime of the source or IO.
     */
     virtual int getApplicationChannelCount() const = 0;
 
@@ -113,12 +111,14 @@ public:
     /**
      * Accept a number of audio sample frames that have been received
      * from the record device. The samples pointer will point to
-     * getApplicationChannelCount() channel buffers each having
-     * nframes samples.
+     * nchannels channel buffers each having nframes samples. The
+     * value of nchannels will be whatever
+     * getApplicationChannelCount() returned at the time the device
+     * was initialised.
      *
      * This may be called from realtime context.
      */
-    virtual void putSamples(int nframes, float **samples) = 0;
+    virtual void putSamples(const float *const *samples, int nchannels, int nframes) = 0;
     
     /**
      * Report peak input levels for the last output

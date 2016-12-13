@@ -371,7 +371,7 @@ JACKAudioIO::process(jack_nframes_t j_nframes)
         }
         
 	m_target->setInputLevels(peakLeft, peakRight);
-        m_target->putSamples(nframes, inbufs);
+        m_target->putSamples(inbufs, int(m_inputs.size()), nframes);
     }
 
     auto gain = Gains::gainsFor(m_outputGain, m_outputBalance, m_outputs.size()); 
@@ -382,7 +382,8 @@ JACKAudioIO::process(jack_nframes_t j_nframes)
             outbufs[ch] = (float *)jack_port_get_buffer(m_outputs[ch], nframes);
         }
         
-	int received = m_source->getSourceSamples(nframes, outbufs);
+	int received = m_source->getSourceSamples
+            (outbufs, int(m_outputs.size()), nframes);
 
         peakLeft = 0.0; peakRight = 0.0;
 

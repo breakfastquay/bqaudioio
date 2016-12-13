@@ -261,8 +261,8 @@ PortAudioIO::PortAudioIO(Mode mode,
         m_sampleRate = outInfo->defaultSampleRate;
     }
 
-    m_inputChannels = 2;
-    m_outputChannels = 2;
+    m_sourceChannels = 2;
+    m_targetChannels = 2;
 
     int sourceRate = 0;
     int targetRate = 0;
@@ -273,7 +273,7 @@ PortAudioIO::PortAudioIO(Mode mode,
             m_sampleRate = sourceRate;
         }
         if (m_source->getApplicationChannelCount() != 0) {
-            m_outputChannels = m_source->getApplicationChannelCount();
+            m_sourceChannels = m_source->getApplicationChannelCount();
         }
     }
     if (m_target) {
@@ -286,12 +286,15 @@ PortAudioIO::PortAudioIO(Mode mode,
             }
         }
         if (m_target->getApplicationChannelCount() != 0) {
-            m_inputChannels = m_target->getApplicationChannelCount();
+            m_targetChannels = m_target->getApplicationChannelCount();
         }
     }
     if (m_sampleRate == 0) {
         m_sampleRate = 44100;
     }
+
+    m_inputChannels = m_targetChannels;
+    m_outputChannels = m_sourceChannels;
 
     ip.channelCount = m_inputChannels;
     op.channelCount = m_outputChannels;
@@ -370,7 +373,8 @@ PortAudioIO::PortAudioIO(Mode mode,
         m_target->setSystemRecordChannelCount(m_inputChannels);
     }
 
-    m_bufferChannels = std::max(m_inputChannels, m_outputChannels);
+    m_bufferChannels = std::max(std::max(m_sourceChannels, m_targetChannels),
+                                std::max(m_inputChannels, m_outputChannels));
     m_buffers = allocate_and_zero_channels<float>(m_bufferChannels, m_bufferSize);
 
     err = Pa_StartStream(m_stream);
@@ -530,18 +534,11 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
 
     int nframes = int(pa_nframes);
 
-    int sourceChannels = m_source ? m_source->getApplicationChannelCount() : 0;
-    int targetChannels = m_target ? m_target->getApplicationChannelCount() : 0;
-
-    if (nframes > m_bufferSize ||
-        sourceChannels > m_bufferChannels ||
-        targetChannels > m_bufferChannels) {
-        int bufferChannels = std::max(sourceChannels, targetChannels);
+    if (nframes > m_bufferSize) {
         m_buffers = reallocate_and_zero_extend_channels
             (m_buffers,
              m_bufferChannels, m_bufferSize,
-             bufferChannels, nframes);
-        m_bufferChannels = bufferChannels;
+             m_bufferChannels, nframes);
         m_bufferSize = nframes;
     }
     
@@ -556,11 +553,11 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
             (m_buffers, input, m_inputChannels, nframes);
         
         v_reconfigure_channels_inplace
-            (m_buffers, targetChannels, m_inputChannels, nframes);
+            (m_buffers, m_targetChannels, m_inputChannels, nframes);
 
         peakLeft = 0.0, peakRight = 0.0;
 
-        for (int c = 0; c < targetChannels && c < 2; ++c) {
+        for (int c = 0; c < m_targetChannels && c < 2; ++c) {
             float peak = 0.f;
             for (int i = 0; i < nframes; ++i) {
                 if (m_buffers[c][i] > peak) {
@@ -568,25 +565,25 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
                 }
             }
             if (c == 0) peakLeft = peak;
-            if (c > 0 || targetChannels == 1) peakRight = peak;
+            if (c > 0 || m_targetChannels == 1) peakRight = peak;
         }
 
-        m_target->putSamples(nframes, m_buffers);
+        m_target->putSamples(m_buffers, m_targetChannels, nframes);
         m_target->setInputLevels(peakLeft, peakRight);
     }
 
     if (m_source && output) {
 
-        int received = m_source->getSourceSamples(nframes, m_buffers);
+        int received = m_source->getSourceSamples(m_buffers, m_sourceChannels, nframes);
 
         if (received < nframes) {
-            for (int c = 0; c < sourceChannels; ++c) {
+            for (int c = 0; c < m_sourceChannels; ++c) {
                 v_zero(m_buffers[c] + received, nframes - received);
             }
         }
 
         v_reconfigure_channels_inplace
-            (m_buffers, m_outputChannels, sourceChannels, nframes);
+            (m_buffers, m_outputChannels, m_sourceChannels, nframes);
 
         auto gain = Gains::gainsFor(m_outputGain, m_outputBalance, m_outputChannels);
         for (int c = 0; c < m_outputChannels; ++c) {
