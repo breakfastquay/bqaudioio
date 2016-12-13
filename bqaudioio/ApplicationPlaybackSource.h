@@ -118,14 +118,14 @@ public:
      * application. The samples pointer will point to nchannels
      * channel buffers, each having enough space for nframes
      * samples. This function should write the requested number of
-     * samples directly into those buffers.  The value of nchannels
-     * will be the same as getApplicationChannelCount() returned at
-     * the time the device was initialised.
+     * samples directly into those buffers.  The value of nchannels is
+     * guaranteed to be the same as getApplicationChannelCount()
+     * returned at the time the device was initialised.
      *
      * Return value should be the number of sample frames written
      * (nframes unless fewer samples exist to be played).
      *
-     * This may be called from realtime context.
+     * This may be called from a realtime context.
      */
     virtual int getSourceSamples(float *const *samples, int nchannels, int nframes) = 0;
 
@@ -133,7 +133,7 @@ public:
      * Report peak output levels for the last output
      * buffer. Potentially useful for monitoring.
      *
-     * This may be called from realtime context.
+     * This may be called from a realtime context.
      */
     virtual void setOutputLevels(float peakLeft, float peakRight) = 0;
 
