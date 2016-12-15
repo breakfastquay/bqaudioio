@@ -46,6 +46,8 @@ using namespace std;
 
 namespace breakfastquay {
 
+static int defaultMaxBufferSize = 10240; // bigger will require dynamic resizing
+
 ResamplerWrapper::ResamplerWrapper(ApplicationPlaybackSource *source) :
     m_source(source),
     m_targetRate(44100), // will update when the target calls back
@@ -67,9 +69,17 @@ ResamplerWrapper::ResamplerWrapper(ApplicationPlaybackSource *source) :
     // begins, so we have to allow this at this point.
     
     m_channels = m_source->getApplicationChannelCount();
-    m_resampler = new Resampler(Resampler::FastestTolerable, m_channels);
+
+    Resampler::Parameters params;
+    params.quality = Resampler::FastestTolerable;
+    params.maxBufferSize = defaultMaxBufferSize;
+    if (m_sourceRate != 0) {
+        params.initialSampleRate = m_sourceRate;
+    }
+    m_resampler = new Resampler(params, m_channels);
+    
     m_ptrs = new float *[m_channels];
-    setupBuffersFor(10240);
+    setupBuffersFor(defaultMaxBufferSize);
 }
 
 ResamplerWrapper::~ResamplerWrapper()
@@ -86,7 +96,7 @@ void
 ResamplerWrapper::changeApplicationSampleRate(int newRate)
 {
     m_sourceRate = newRate;
-    setupBuffersFor(10240);
+    setupBuffersFor(defaultMaxBufferSize);
 }
 
 std::string
