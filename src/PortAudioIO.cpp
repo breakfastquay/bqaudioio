@@ -43,6 +43,7 @@
 #include <cassert>
 #include <cmath>
 #include <climits>
+#include <algorithm>
 
 #include <mutex>
 
