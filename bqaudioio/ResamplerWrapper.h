@@ -39,6 +39,24 @@ namespace breakfastquay {
 
 class Resampler;
 
+/**
+ * Utility class for applications that want automatic sample rate
+ * conversion on playback (resampling on record is not provided).
+ *
+ * An ApplicationPlaybackSource may request a specific sample rate
+ * through its getApplicationSampleRate callback. This will be used as
+ * the default rate when opening the audio driver. However, not all
+ * drivers can be opened at arbitrary rates (e.g. a JACK driver always
+ * inherits the JACK graph sample rate), so it's possible that a
+ * driver may be opened at a different rate from that requested by the
+ * source.
+ *
+ * An application can accommodate this by wrapping its
+ * ApplicationPlaybackSource in a ResamplerWrapper when passing it to
+ * the AudioFactory. The ResamplerWrapper will automatically resample
+ * output if the driver happened to be opened at a different rate from
+ * that requested by the source.
+ */
 class ResamplerWrapper : public ApplicationPlaybackSource
 {
 public:
@@ -49,16 +67,17 @@ public:
      * target's expected sample rate automatically.
      */
     ResamplerWrapper(ApplicationPlaybackSource *source);
+
     ~ResamplerWrapper();
 
     /**
-     * Call this (e.g. from the wrapped ApplicationPlaybackSource) to
-     * indicate a change in the sample rate that we should be
-     * resampling from.
+     * Call this function (e.g. from the wrapped
+     * ApplicationPlaybackSource) to indicate a change in the sample
+     * rate that we should be resampling from.
      *
      * (The wrapped ApplicationPlaybackSource should not change the
      * value it returns from getApplicationSampleRate(), as the API
-     * requires that this be fixed.)
+     * requires that that be fixed.)
      */
     void changeApplicationSampleRate(int newRate);
 
@@ -67,8 +86,10 @@ public:
      */
     void reset();
     
-    virtual std::string getClientName() const;
+    // These functions are passed through to the wrapped
+    // ApplicationPlaybackSource
     
+    virtual std::string getClientName() const;
     virtual int getApplicationSampleRate() const;
     virtual int getApplicationChannelCount() const;
 
@@ -77,10 +98,15 @@ public:
     virtual void setSystemPlaybackChannelCount(int);
     virtual void setSystemPlaybackLatency(int);
 
-    virtual int getSourceSamples(float *const *samples, int nchannels, int nframes);
-
     virtual void setOutputLevels(float peakLeft, float peakRight);
     virtual void audioProcessingOverload();
+
+    /** 
+     * Request some samples from the wrapped
+     * ApplicationPlaybackSource, resample them if necessary, and
+     * return them to the target
+     */
+    virtual int getSourceSamples(float *const *samples, int nchannels, int nframes);
 
 private:
     ApplicationPlaybackSource *m_source;
