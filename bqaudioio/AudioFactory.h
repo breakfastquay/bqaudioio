@@ -82,12 +82,18 @@ public:
      *
      * Return a null pointer if the requested device could not be
      * opened, or, in the case where no preference was stated, if no
-     * device could be opened.
+     * device could be opened. An error string may also be returned
+     * through the errorString argument. (The error string will
+     * generally be returned only if a specific implementation was
+     * requested or if only one implementation is available; otherwise
+     * we don't know which of the failed implementations to return an
+     * error from.)
      */
     static SystemAudioIO *
-    createCallbackIO(ApplicationRecordTarget *,
-                     ApplicationPlaybackSource *,
-                     Preference);
+    createCallbackIO(ApplicationRecordTarget *recordTarget,
+                     ApplicationPlaybackSource *playSource,
+                     Preference preference,
+                     std::string &errorString);
 
     /**
      * Open the audio driver in record-only mode using the given
@@ -100,11 +106,17 @@ public:
      *
      * Return a null pointer if the requested device could not be
      * opened, or, in the case where no preference was stated, if no
-     * device could be opened.
+     * device could be opened. An error string may also be returned
+     * through the errorString argument. (The error string will
+     * generally be returned only if a specific implementation was
+     * requested or if only one implementation is available; otherwise
+     * we don't know which of the failed implementations to return an
+     * error from.)
      */
     static SystemRecordSource *
-    createCallbackRecordSource(ApplicationRecordTarget *,
-                               Preference);
+    createCallbackRecordSource(ApplicationRecordTarget *recordTarget,
+                               Preference preference,
+                               std::string &errorString);
     
     /**
      * Open the audio driver in playback-only mode using the given
@@ -117,11 +129,17 @@ public:
      *
      * Return a null pointer if the requested device could not be
      * opened, or, in the case where no preference was stated, if no
-     * device could be opened.
+     * device could be opened. An error string may also be returned
+     * through the errorString argument. (The error string will
+     * generally be returned only if a specific implementation was
+     * requested or if only one implementation is available; otherwise
+     * we don't know which of the failed implementations to return an
+     * error from.)
      */
     static SystemPlaybackTarget *
-    createCallbackPlayTarget(ApplicationPlaybackSource *,
-                             Preference);
+    createCallbackPlayTarget(ApplicationPlaybackSource *playSource,
+                             Preference preference,
+                             std::string &errorString);
 
 private:
     AudioFactory(const AudioFactory &)=delete;

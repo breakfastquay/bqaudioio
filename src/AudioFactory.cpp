@@ -144,17 +144,22 @@ static SystemAudioIO *
 createIO(Mode mode,
          ApplicationRecordTarget *target,
          ApplicationPlaybackSource *source,
-         AudioFactory::Preference preference)
+         AudioFactory::Preference preference,
+         std::string &errorString)
 {
-    SystemAudioIO *io = 0;
+    string startupError;
+    int implementationsTried = 0;
     
 #ifdef HAVE_JACK
     if (preference.implementation == "" || preference.implementation == "jack") {
-        io = new JACKAudioIO(mode, target, source,
-                             preference.recordDevice, preference.playbackDevice);
+        ++implementationsTried;
+        JACKAudioIO *io = new JACKAudioIO(mode, target, source,
+                                          preference.recordDevice,
+                                          preference.playbackDevice);
         if (io->isOK()) return io;
         else {
             std::cerr << "WARNING: AudioFactory::createCallbackIO: Failed to open JACK I/O" << std::endl;
+            startupError = io->getStartupErrorString();
             delete io;
         }
     }
@@ -162,11 +167,14 @@ createIO(Mode mode,
 
 #ifdef HAVE_LIBPULSE
     if (preference.implementation == "" || preference.implementation == "pulse") {
-        io = new PulseAudioIO(mode, target, source,
-                              preference.recordDevice, preference.playbackDevice);
+        ++implementationsTried;
+        PulseAudioIO *io = new PulseAudioIO(mode, target, source,
+                                            preference.recordDevice,
+                                            preference.playbackDevice);
         if (io->isOK()) return io;
         else {
             std::cerr << "WARNING: AudioFactory::createCallbackIO: Failed to open PulseAudio I/O" << std::endl;
+            startupError = io->getStartupErrorString();
             delete io;
         }
     }
@@ -174,52 +182,68 @@ createIO(Mode mode,
 
 #ifdef HAVE_PORTAUDIO
     if (preference.implementation == "" || preference.implementation == "port") {
-        io = new PortAudioIO(mode, target, source,
-                             preference.recordDevice, preference.playbackDevice);
+        ++implementationsTried;
+        PortAudioIO *io = new PortAudioIO(mode, target, source,
+                                          preference.recordDevice,
+                                          preference.playbackDevice);
         if (io->isOK()) return io;
         else {
             std::cerr << "WARNING: AudioFactory::createCallbackIO: Failed to open PortAudio I/O" << std::endl;
+            startupError = io->getStartupErrorString();
             delete io;
         }
     }
 #endif
 
+    if (implementationsTried == 0) {
+        if (preference.implementation == "") {
+            errorString = "No audio drivers compiled in";
+        } else {
+            errorString = "Requested audio driver is not compiled in";
+        }
+    } else if (implementationsTried == 1) {
+        errorString = startupError;
+    }
+    
     std::cerr << "WARNING: AudioFactory::createIO: No suitable implementation available" << std::endl;
     return nullptr;
 }
 
 SystemPlaybackTarget *
 AudioFactory::createCallbackPlayTarget(ApplicationPlaybackSource *source,
-                                       Preference preference)
+                                       Preference preference,
+                                       std::string &errorString)
 {
     if (!source) {
         throw std::logic_error("ApplicationPlaybackSource must be provided");
     }
 
-    return createIO(Mode::Playback, 0, source, preference);
+    return createIO(Mode::Playback, 0, source, preference, errorString);
 }
 
 SystemRecordSource *
 AudioFactory::createCallbackRecordSource(ApplicationRecordTarget *target,
-                                         Preference preference)
+                                         Preference preference,
+                                         std::string &errorString)
 {
     if (!target) {
         throw std::logic_error("ApplicationRecordTarget must be provided");
     }
 
-    return createIO(Mode::Record, target, 0, preference);
+    return createIO(Mode::Record, target, 0, preference, errorString);
 }
 
 SystemAudioIO *
 AudioFactory::createCallbackIO(ApplicationRecordTarget *target,
                                ApplicationPlaybackSource *source,
-                               Preference preference)
+                               Preference preference,
+                               std::string &errorString)
 {
     if (!target || !source) {
         throw std::logic_error("ApplicationRecordTarget and ApplicationPlaybackSource must both be provided");
     }
 
-    return createIO(Mode::Duplex, target, source, preference);
+    return createIO(Mode::Duplex, target, source, preference, errorString);
 }
 
 }

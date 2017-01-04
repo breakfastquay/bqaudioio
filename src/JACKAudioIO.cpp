@@ -99,8 +99,8 @@ JACKAudioIO::JACKAudioIO(Mode mode,
     JackStatus status = JackStatus(0);
     m_client = jack_client_open(clientName.c_str(), options, &status);
     if (!m_client) {
-        cerr << "ERROR: JACKPlaybackTarget: Failed to connect to JACK server"
-             << endl;
+        m_startupError = "Failed to connect to JACK server";
+        cerr << "ERROR: JACKPlaybackTarget: " << m_startupError << endl;
         return;
     }
 
@@ -111,8 +111,9 @@ JACKAudioIO::JACKAudioIO(Mode mode,
     jack_set_process_callback(m_client, processStatic, this);
 
     if (jack_activate(m_client)) {
-	cerr << "ERROR: JACKAudioIO: Failed to activate JACK client"
-		  << endl;
+        m_startupError = "Failed to activate JACK client";
+	cerr << "ERROR: JACKAudioIO: " << m_startupError << endl;
+        return;
     }
 
     bool connectRecord = (recordDevice != noConnectionName);

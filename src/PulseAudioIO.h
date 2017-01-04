@@ -74,6 +74,8 @@ public:
     virtual void suspend();
     virtual void resume();
 
+    std::string getStartupErrorString() const { return m_startupError; }
+
 protected:
     void streamWrite(int);
     void streamRead(int);
@@ -120,6 +122,8 @@ protected:
     bool m_playbackReady;
 
     bool m_suspended;
+
+    std::string m_startupError;
 
     void checkBufferCapacity(int nframes);
     

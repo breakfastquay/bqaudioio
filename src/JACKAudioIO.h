@@ -66,6 +66,8 @@ public:
     virtual void resume() {}
     
     virtual double getCurrentTime() const;
+
+    std::string getStartupErrorString() const { return m_startupError; }
     
 protected:
     void setup(bool connectRecord, bool connectPlayback);
@@ -82,6 +84,7 @@ protected:
     jack_nframes_t              m_bufferSize;
     jack_nframes_t              m_sampleRate;
     std::mutex                  m_mutex;
+    std::string                 m_startupError;
 
     JACKAudioIO(const JACKAudioIO &)=delete;
     JACKAudioIO &operator=(const JACKAudioIO &)=delete;

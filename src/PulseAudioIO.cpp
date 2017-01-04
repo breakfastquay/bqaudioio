@@ -102,7 +102,8 @@ PulseAudioIO::PulseAudioIO(Mode mode,
 
     m_loop = pa_mainloop_new();
     if (!m_loop) {
-        cerr << "ERROR: PulseAudioIO: Failed to create main loop" << endl;
+        m_startupError = "Failed to create PulseAudio main loop";
+        cerr << "ERROR: PulseAudioIO: " << m_startupError << endl;
         return;
     }
 
@@ -155,7 +156,8 @@ PulseAudioIO::PulseAudioIO(Mode mode,
 
     m_context = pa_context_new(m_api, m_name.c_str());
     if (!m_context) {
-        cerr << "ERROR: PulseAudioIO: Failed to create context object" << endl;
+        m_startupError = "Failed to create PulseAudio context object";
+        cerr << "ERROR: PulseAudioIO: " << m_startupError << endl;
         return;
     }
 

@@ -341,8 +341,9 @@ PortAudioIO::PortAudioIO(Mode mode,
     }
     
     if (err != paNoError) {
-	cerr << "ERROR: PortAudioIO: Failed to open PortAudio stream: "
-             << Pa_GetErrorText(err) << endl;
+        m_startupError = "Failed to open PortAudio stream: ";
+        m_startupError += Pa_GetErrorText(err);
+	cerr << "ERROR: PortAudioIO: " << m_startupError << endl;
 	m_stream = 0;
         deinitialise();
 	return;
@@ -381,7 +382,9 @@ PortAudioIO::PortAudioIO(Mode mode,
     err = Pa_StartStream(m_stream);
 
     if (err != paNoError) {
-	cerr << "ERROR: PortAudioIO: Failed to start PortAudio stream" << endl;
+	m_startupError = "Failed to start PortAudio stream: ";
+        m_startupError += Pa_GetErrorText(err);
+        cerr << "ERROR: PortAudioIO: " << m_startupError << endl;
 	Pa_CloseStream(m_stream);
 	m_stream = 0;
         deinitialise();
@@ -476,7 +479,7 @@ PortAudioIO::suspend()
     if (m_suspended || !m_stream) return;
     PaError err = Pa_StopStream(m_stream);
     if (err != paNoError) {
-        cerr << "ERROR: PortAudioIO: Failed to abort PortAudio stream" << endl;
+        cerr << "ERROR: PortAudioIO: Failed to stop PortAudio stream" << endl;
     }
     m_suspended = true;
 #ifdef DEBUG_AUDIO_PORT_AUDIO_IO

@@ -61,13 +61,15 @@ public:
     static std::vector<std::string> getRecordDeviceNames();
     static std::vector<std::string> getPlaybackDeviceNames();
     
-    virtual bool isSourceOK() const;
-    virtual bool isTargetOK() const;
+    virtual bool isSourceOK() const override;
+    virtual bool isTargetOK() const override;
 
-    virtual double getCurrentTime() const;
+    virtual double getCurrentTime() const override;
 
-    virtual void suspend();
-    virtual void resume();
+    virtual void suspend() override;
+    virtual void resume() override;
+
+    std::string getStartupErrorString() const { return m_startupError; }
     
 protected:
     int process(const void *input, void *output, unsigned long frames,
@@ -98,6 +100,7 @@ protected:
     bool m_suspended;
     float **m_buffers;
     int m_bufferChannels;
+    std::string m_startupError;
 
     PortAudioIO(const PortAudioIO &)=delete;
     PortAudioIO &operator=(const PortAudioIO &)=delete;
