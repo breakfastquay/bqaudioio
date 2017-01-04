@@ -257,6 +257,7 @@ PortAudioIO::PortAudioIO(Mode mode,
     ip.device = getDeviceIndex(recordDevice, true);
     op.device = getDeviceIndex(playbackDevice, false);
 
+    const PaDeviceInfo *inInfo = Pa_GetDeviceInfo(ip.device);
     const PaDeviceInfo *outInfo = Pa_GetDeviceInfo(op.device);
     if (outInfo) {
         m_sampleRate = outInfo->defaultSampleRate;
@@ -297,6 +298,18 @@ PortAudioIO::PortAudioIO(Mode mode,
     m_inputChannels = m_targetChannels;
     m_outputChannels = m_sourceChannels;
 
+    if (inInfo &&
+        m_inputChannels > inInfo->maxInputChannels &&
+        inInfo->maxInputChannels > 0) {
+        m_inputChannels = inInfo->maxInputChannels;
+    }
+
+    if (outInfo &&
+        m_outputChannels > outInfo->maxOutputChannels &&
+        outInfo->maxOutputChannels > 0) {
+        m_outputChannels = outInfo->maxOutputChannels;
+    }
+    
     ip.channelCount = m_inputChannels;
     op.channelCount = m_outputChannels;
     ip.sampleFormat = paFloat32;
