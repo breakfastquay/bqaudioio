@@ -403,6 +403,8 @@ PortAudioIO::PortAudioIO(Mode mode,
         deinitialise();
 	return;
     }
+
+    cerr << "PortAudioIO: started successfully" << endl;
 }
 
 PortAudioIO::~PortAudioIO()
