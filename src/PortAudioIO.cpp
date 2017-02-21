@@ -256,6 +256,10 @@ PortAudioIO::PortAudioIO(Mode mode,
 
     if (!initialise()) return;
 
+    // solely to debug-log the list of devices, so both arg
+    // and return value are irrelevant here:
+    (void)getDeviceNames(false);
+
     if (m_mode == Mode::Playback) {
         m_target = 0;
     }
@@ -270,6 +274,13 @@ PortAudioIO::PortAudioIO(Mode mode,
     PaStreamParameters ip, op;
     ip.device = getDeviceIndex(recordDevice, true);
     op.device = getDeviceIndex(playbackDevice, false);
+
+    {
+        ostringstream os;
+        os << "Obtained playback device index " << op.device
+           << " and record device index " << ip.device;
+        log(os.str());
+    }
 
     const PaDeviceInfo *inInfo = Pa_GetDeviceInfo(ip.device);
     const PaDeviceInfo *outInfo = Pa_GetDeviceInfo(op.device);
