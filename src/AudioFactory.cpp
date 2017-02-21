@@ -35,12 +35,20 @@
 #include "PortAudioIO.h"
 #include "PulseAudioIO.h"
 
+#include "Log.h"
+
 #include <iostream>
 
 using std::string;
 using std::vector;
 
 namespace breakfastquay {
+
+void
+AudioFactory::setLogCallback(LogCallback *callback)
+{
+    Log::setLogCallback(callback);
+}
 
 vector<string>
 AudioFactory::getImplementationNames()

@@ -36,10 +36,12 @@
 #include "ApplicationPlaybackSource.h"
 #include "ApplicationRecordTarget.h"
 #include "Gains.h"
+#include "Log.h"
 
 #include <bqvec/Range.h>
 
 #include <iostream>
+#include <sstream>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -55,6 +57,10 @@ namespace breakfastquay {
 
 static string defaultConnectionName = "Default Connection";
 static string noConnectionName = "No Connection";
+
+static void log(string message) {
+    Log::log("JACKAudioIO: " + message);
+}    
 
 vector<string>
 JACKAudioIO::getRecordDeviceNames()
@@ -79,6 +85,8 @@ JACKAudioIO::JACKAudioIO(Mode mode,
     m_bufferSize(0),
     m_sampleRate(0)
 {
+    log("starting");
+    
     if (m_mode == Mode::Playback) {
         m_target = 0;
     }
@@ -100,7 +108,7 @@ JACKAudioIO::JACKAudioIO(Mode mode,
     m_client = jack_client_open(clientName.c_str(), options, &status);
     if (!m_client) {
         m_startupError = "Failed to connect to JACK server";
-        cerr << "ERROR: JACKPlaybackTarget: " << m_startupError << endl;
+        log("ERROR: " + m_startupError);
         return;
     }
 
@@ -112,7 +120,7 @@ JACKAudioIO::JACKAudioIO(Mode mode,
 
     if (jack_activate(m_client)) {
         m_startupError = "Failed to activate JACK client";
-	cerr << "ERROR: JACKAudioIO: " << m_startupError << endl;
+        log("ERROR: " + m_startupError);
         return;
     }
 
@@ -120,6 +128,8 @@ JACKAudioIO::JACKAudioIO(Mode mode,
     bool connectPlayback = (playbackDevice != noConnectionName);
     
     setup(connectRecord, connectPlayback);
+
+    log("started successfully");
 }
 
 JACKAudioIO::~JACKAudioIO()
@@ -127,6 +137,7 @@ JACKAudioIO::~JACKAudioIO()
     if (m_client) {
 	jack_deactivate(m_client);
 	jack_client_close(m_client);
+        log("closed");
     }
 }
 
@@ -217,9 +228,15 @@ JACKAudioIO::setup(bool connectRecord, bool connectPlayback)
     int capPortCount = 0;
     while (capPorts && capPorts[capPortCount]) ++capPortCount;
 
-#ifdef DEBUG_AUDIO_JACK_IO    
-    cerr << "JACKAudioIO::setup: have " << channels << " channels, " << capPortCount << " capture ports, " << playPortCount << " playback ports" << endl;
-#endif
+    {
+        ostringstream os;
+        os << "Setup: have "
+           << channelsPlay << " playback channels, "
+           << channelsRec << " capture channels, "
+           << playPortCount << " playback ports, "
+           << capPortCount << " capture ports";
+        log(os.str());
+    }
 
     if (m_source) {
 
@@ -237,8 +254,9 @@ JACKAudioIO::setup(bool connectRecord, bool connectPlayback)
                                       0);
 
             if (!port) {
-                cerr << "ERROR: JACKAudioIO: Failed to create JACK output port "
-                    << m_outputs.size() << endl;
+                ostringstream os;
+                os << "ERROR: Failed to create JACK output port " << m_outputs.size();
+                log(os.str());
                 return;
             } else {
                 jack_latency_range_t range;
@@ -274,8 +292,9 @@ JACKAudioIO::setup(bool connectRecord, bool connectPlayback)
                                       0);
 
             if (!port) {
-                cerr << "ERROR: JACKAudioIO: Failed to create JACK input port "
-                    << m_inputs.size() << endl;
+                ostringstream os;
+                os << "ERROR: Failed to create JACK input port " << m_inputs.size();
+                log(os.str());
                 return;
             } else {
                 jack_latency_range_t range;
@@ -423,7 +442,7 @@ JACKAudioIO::process(jack_nframes_t j_nframes)
 int
 JACKAudioIO::xrun()
 {
-    cerr << "JACKAudioIO: xrun!" << endl;
+    log("xrun!");
     if (m_target) m_target->audioProcessingOverload();
     if (m_source) m_source->audioProcessingOverload();
     return 0;

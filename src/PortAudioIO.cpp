@@ -35,11 +35,13 @@
 #include "ApplicationPlaybackSource.h"
 #include "ApplicationRecordTarget.h"
 #include "Gains.h"
+#include "Log.h"
 
 #include "bqvec/VectorOps.h"
 #include "bqvec/Allocators.h"
 
 #include <iostream>
+#include <sstream>
 #include <cassert>
 #include <cmath>
 #include <climits>
@@ -58,6 +60,10 @@
 using namespace std;
 
 namespace breakfastquay {
+
+static void log(string message) {
+    Log::log("PortAudioIO: " + message);
+}    
 
 #ifdef __LINUX__
 extern "C" {
@@ -88,9 +94,9 @@ enableRT() { // on current thread
     sched_param param;
     param.sched_priority = 20;
     if (pthread_setschedparam(pthread_self(), SCHED_RR, &param)) {
-        cerr << "PortAudioIO: NOTE: couldn't set RT scheduling class" << endl;
+        log("NOTE: couldn't set RT scheduling class");
     } else {
-        cerr << "PortAudioIO: NOTE: successfully set RT scheduling class" << endl;
+        log("NOTE: successfully set RT scheduling class");
     }
     return true;
 #endif
@@ -100,17 +106,17 @@ enableRT() { // on current thread
 
 static bool paio_initialised = false;
 static bool paio_working = false;
-static std::mutex paio_init_mutex;
+static mutex paio_init_mutex;
 
 static bool initialise() {
 
-    std::lock_guard<std::mutex> guard(paio_init_mutex);
+    lock_guard<mutex> guard(paio_init_mutex);
 
     if (!paio_initialised) {
         PaError err = Pa_Initialize();
         paio_initialised = true;
         if (err != paNoError) {
-            cerr << "ERROR: PortAudioIO: Failed to initialize PortAudio" << endl;
+            log("ERROR: Failed to initialize PortAudio");
             paio_working = false;
         } else {
             paio_working = true;
@@ -122,7 +128,7 @@ static bool initialise() {
 
 static void deinitialise() {
 
-    std::lock_guard<std::mutex> guard(paio_init_mutex);
+    lock_guard<mutex> guard(paio_init_mutex);
 
     if (paio_initialised && paio_working) {
 	Pa_Terminate();
@@ -143,21 +149,25 @@ getDeviceNames(bool record)
 
     if (count < 0) {
         // error
-        cerr << "PortAudioIO: error in retrieving device list: "
-             << Pa_GetErrorText(count) << endl;
+        log(string("error in retrieving device list: ") + Pa_GetErrorText(count));
         return names;
+    } else {
+        ostringstream os;
+        os << "have " << count << " device(s)";
+        log(os.str());
     }
     
-    cerr << "PortAudioIO: have " << count << " device(s)" << endl;
-    
     for (int i = 0; i < count; ++i) {
+
         const PaDeviceInfo *info = Pa_GetDeviceInfo(i);
 
-        cerr << "PortAudioIO: device " << i << " of " << count << ":" << endl;
-        cerr << "name = \"" << info->name << "\"" << endl;
-        cerr << "maxInputChannels = " << info->maxInputChannels << endl;
-        cerr << "maxOutputChannels = " << info->maxOutputChannels << endl;
-        cerr << "defaultSampleRate = " << info->defaultSampleRate << endl;
+        ostringstream os;
+        os << "device " << i << " of " << count << ":" << endl;
+        os << "name = \"" << info->name << "\"" << endl;
+        os << "maxInputChannels = " << info->maxInputChannels << endl;
+        os << "maxOutputChannels = " << info->maxOutputChannels << endl;
+        os << "defaultSampleRate = " << info->defaultSampleRate;
+        log(os.str());
 
         if (record) {
             if (info->maxInputChannels > 0) {
@@ -176,14 +186,16 @@ static
 PaDeviceIndex
 getDeviceIndex(string name, bool record)
 {
-    cerr << "getDeviceIndex: name = \"" << name << "\", record = " << record
-         << endl;
+    {
+        ostringstream os;
+        os << "getDeviceIndex: name = \"" << name << "\", record = " << record;
+        log(os.str());
+    }
     
     if (name != "") {
         PaDeviceIndex count = Pa_GetDeviceCount();
         if (count < 0) {
-            cerr << "PortAudioIO: error in retrieving device index: "
-                 << Pa_GetErrorText(count) << endl;
+            log(string("error in retrieving device index: ") + Pa_GetErrorText(count));
         }
         for (int i = 0; i < count; ++i) {
             const PaDeviceInfo *info = Pa_GetDeviceInfo(i);
@@ -240,6 +252,8 @@ PortAudioIO::PortAudioIO(Mode mode,
     m_buffers(0),
     m_bufferChannels(0)
 {
+    log("starting");
+
     if (!initialise()) return;
 
     if (m_mode == Mode::Playback) {
@@ -282,7 +296,8 @@ PortAudioIO::PortAudioIO(Mode mode,
         targetRate = m_target->getApplicationSampleRate();
         if (targetRate != 0) {
             if (sourceRate != 0 && sourceRate != targetRate) {
-                cerr << "WARNING: PortAudioIO: Source and target both provide sample rates, but different ones (source " << sourceRate << ", target " << targetRate << ") - using source rate" << endl;
+                ostringstream os;
+                os << "WARNING: Source and target both provide sample rates, but different ones (source " << sourceRate << ", target " << targetRate << ") - using source rate";
             } else {
                 m_sampleRate = targetRate;
             }
@@ -332,9 +347,8 @@ PortAudioIO::PortAudioIO(Mode mode,
     if (err != paNoError) {
         if (m_inputChannels != 2 || m_outputChannels != 2) {
 
-            cerr << "WARNING: PortAudioIO: Failed to open PortAudio stream: "
-                 << Pa_GetErrorText(err) << ": trying again with 2x2 configuration"
-                 << endl;
+            log(string("WARNING: Failed to open PortAudio stream: ") + 
+                Pa_GetErrorText(err) + ": trying again with 2x2 configuration");
             
             m_inputChannels = 2;
             m_outputChannels = 2;
@@ -356,7 +370,7 @@ PortAudioIO::PortAudioIO(Mode mode,
     if (err != paNoError) {
         m_startupError = "Failed to open PortAudio stream: ";
         m_startupError += Pa_GetErrorText(err);
-	cerr << "ERROR: PortAudioIO: " << m_startupError << endl;
+	log("ERROR: " + m_startupError);
 	m_stream = 0;
         deinitialise();
 	return;
@@ -372,7 +386,11 @@ PortAudioIO::PortAudioIO(Mode mode,
         m_prioritySet = true;
     }
 
-    cerr << "PortAudioIO: block size " << m_bufferSize << endl;
+    {
+        ostringstream os;
+        os << "block size " << m_bufferSize;
+        log(os.str());
+    }
 
     if (m_source) {
 	m_source->setSystemPlaybackBlockSize(m_bufferSize);
@@ -397,14 +415,14 @@ PortAudioIO::PortAudioIO(Mode mode,
     if (err != paNoError) {
 	m_startupError = "Failed to start PortAudio stream: ";
         m_startupError += Pa_GetErrorText(err);
-        cerr << "ERROR: PortAudioIO: " << m_startupError << endl;
+        log("ERROR: " + m_startupError);
 	Pa_CloseStream(m_stream);
 	m_stream = 0;
         deinitialise();
 	return;
     }
 
-    cerr << "PortAudioIO: started successfully" << endl;
+    log("started successfully");
 }
 
 PortAudioIO::~PortAudioIO()
@@ -414,20 +432,20 @@ PortAudioIO::~PortAudioIO()
         if (!m_suspended) {
             err = Pa_StopStream(m_stream);
             if (err != paNoError) {
-                cerr << "ERROR: PortAudioIO: Failed to stop PortAudio stream" << endl;
+                log("ERROR: Failed to stop PortAudio stream");
                 err = Pa_AbortStream(m_stream);
                 if (err != paNoError) {
-                    cerr << "ERROR: PortAudioIO: Failed to abort PortAudio stream" << endl;
+                    log("ERROR: Failed to abort PortAudio stream");
                 }
             }
 	}
 	err = Pa_CloseStream(m_stream);
 	if (err != paNoError) {
-	    cerr << "ERROR: PortAudioIO: Failed to close PortAudio stream" << endl;
+	    log("ERROR: Failed to close PortAudio stream");
 	}
         deallocate_channels(m_buffers, m_bufferChannels);
         deinitialise();
-        cerr << "PortAudioIO: terminated" << endl;
+        log("closed");
     }
 }
 
@@ -487,37 +505,31 @@ PortAudioIO::getCurrentTime() const
 void
 PortAudioIO::suspend()
 {
-#ifdef DEBUG_AUDIO_PORT_AUDIO_IO
-    cerr << "PortAudioIO::suspend called" << endl;
-#endif
+    log("suspend called");
 
     if (m_suspended || !m_stream) return;
     PaError err = Pa_StopStream(m_stream);
     if (err != paNoError) {
-        cerr << "ERROR: PortAudioIO: Failed to stop PortAudio stream" << endl;
+        log("ERROR: Failed to stop PortAudio stream");
     }
+    
     m_suspended = true;
-#ifdef DEBUG_AUDIO_PORT_AUDIO_IO
-    cerr << "suspended" << endl;
-#endif
+    log("suspended");
 }
 
 void
 PortAudioIO::resume()
 {
-#ifdef DEBUG_AUDIO_PORT_AUDIO_IO
-    cerr << "PortAudioIO::resume called" << endl;
-#endif
+    log("resume called");
 
     if (!m_suspended || !m_stream) return;
     PaError err = Pa_StartStream(m_stream);
     if (err != paNoError) {
-        cerr << "ERROR: PortAudioIO: Failed to restart PortAudio stream" << endl;
+        cerr << "ERROR: Failed to restart PortAudio stream";
     }
+
     m_suspended = false;
-#ifdef DEBUG_AUDIO_PORT_AUDIO_IO
-    cerr << "resumed" << endl;
-#endif
+    log("resumed");
 }
 
 int

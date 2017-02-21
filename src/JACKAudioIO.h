@@ -39,6 +39,7 @@
 #include <mutex>
 
 #include "SystemAudioIO.h"
+#include "AudioFactory.h"
 #include "Mode.h"
 
 namespace breakfastquay {

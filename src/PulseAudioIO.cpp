@@ -36,11 +36,13 @@
 #include "ApplicationPlaybackSource.h"
 #include "ApplicationRecordTarget.h"
 #include "Gains.h"
+#include "Log.h"
 
 #include "bqvec/VectorOps.h"
 #include "bqvec/Allocators.h"
 
 #include <iostream>
+#include <sstream>
 #include <cmath>
 #include <climits>
 
@@ -49,6 +51,10 @@ using namespace std;
 //#define DEBUG_PULSE_AUDIO_IO 1
 
 namespace breakfastquay {
+
+static void log(string message) {
+    Log::log("PulseAudioIO: " + message);
+}    
 
 static string defaultDeviceName = "Default Device";
 
@@ -86,9 +92,7 @@ PulseAudioIO::PulseAudioIO(Mode mode,
     m_playbackReady(false),
     m_suspended(false)
 {
-#ifdef DEBUG_PULSE_AUDIO_IO
-    cerr << "PulseAudioIO: Initialising for PulseAudio" << endl;
-#endif
+    log("starting");
     
     if (m_mode == Mode::Playback) {
         m_target = 0;
@@ -103,7 +107,7 @@ PulseAudioIO::PulseAudioIO(Mode mode,
     m_loop = pa_mainloop_new();
     if (!m_loop) {
         m_startupError = "Failed to create PulseAudio main loop";
-        cerr << "ERROR: PulseAudioIO: " << m_startupError << endl;
+        log("ERROR: " + m_startupError);
         return;
     }
 
@@ -128,7 +132,9 @@ PulseAudioIO::PulseAudioIO(Mode mode,
         targetRate = m_target->getApplicationSampleRate();
         if (targetRate != 0) {
             if (sourceRate != 0 && sourceRate != targetRate) {
-                cerr << "WARNING: PulseAudioIO: Source and target both provide sample rates, but different ones (source " << sourceRate << ", target " << targetRate << ") - using source rate" << endl;
+                ostringstream os;
+                os << "WARNING: PulseAudioIO: Source and target both provide sample rates, but different ones (source " << sourceRate << ", target " << targetRate << ") - using source rate";
+                log(os.str());
             } else {
                 m_sampleRate = targetRate;
             }
@@ -157,7 +163,7 @@ PulseAudioIO::PulseAudioIO(Mode mode,
     m_context = pa_context_new(m_api, m_name.c_str());
     if (!m_context) {
         m_startupError = "Failed to create PulseAudio context object";
-        cerr << "ERROR: PulseAudioIO: " << m_startupError << endl;
+        log("ERROR: " + m_startupError);
         return;
     }
 
@@ -167,16 +173,12 @@ PulseAudioIO::PulseAudioIO(Mode mode,
 
     m_loopthread = thread([this]() { threadRun(); });
 
-#ifdef DEBUG_PULSE_AUDIO_IO
-    cerr << "PulseAudioIO: initialised OK" << endl;
-#endif
+    log("started successfully");
 }
 
 PulseAudioIO::~PulseAudioIO()
 {
-#ifdef DEBUG_PULSE_AUDIO_IO
-    cerr << "PulseAudioIO::~PulseAudioIO()" << endl;
-#endif
+    log("closing");
 
     {
         if (m_loop) {
@@ -222,7 +224,7 @@ PulseAudioIO::~PulseAudioIO()
     deallocate_channels(m_buffers, m_bufferChannels);
     deallocate(m_interleaved);
     
-    cerr << "PulseAudioIO::~PulseAudioIO() done" << endl;
+    log("closed");
 }
 
 void
@@ -242,7 +244,7 @@ PulseAudioIO::threadRun()
             //!!! not nice
             rv = pa_mainloop_prepare(m_loop, 1000);
             if (rv < 0) {
-                cerr << "ERROR: PulseAudioIO::threadRun: Failure in pa_mainloop_prepare" << endl;
+                log("ERROR: threadRun: Failure in pa_mainloop_prepare");
                 return;
             }
         }
@@ -257,7 +259,7 @@ PulseAudioIO::threadRun()
         }
 
         if (rv < 0) {
-            cerr << "ERROR: PulseAudioIO::threadRun: Failure in pa_mainloop_poll" << endl;
+            log("ERROR: threadRun: Failure in pa_mainloop_poll");
             return;
         }
 
@@ -270,7 +272,7 @@ PulseAudioIO::threadRun()
 
             rv = pa_mainloop_dispatch(m_loop);
             if (rv < 0) {
-                cerr << "ERROR: PulseAudioIO::threadRun: Failure in pa_mainloop_dispatch" << endl;
+                log("ERROR: threadRun: Failure in pa_mainloop_dispatch");
                 return;
             }
         }
@@ -483,7 +485,10 @@ PulseAudioIO::streamRead(int available)
     int actualFrames = int(actual) / int(channels * sizeof(float));
 
     if (actualFrames < nframes) {
-        cerr << "WARNING: streamRead: read " << actualFrames << " frames, expected " << nframes << endl;
+        ostringstream os;
+        os << "WARNING: streamRead: read " << actualFrames
+           << " frames, expected " << nframes;
+        log(os.str());
     }
     
     const float *finput = (const float *)input;
@@ -543,10 +548,10 @@ PulseAudioIO::streamStateChanged(pa_stream *stream)
         case PA_STREAM_READY:
         {
             if (stream == m_in) {
-                cerr << "PulseAudioIO::streamStateChanged: Capture ready" << endl;
+                log("streamStateChanged: Capture ready");
                 m_captureReady = true;
             } else {
-                cerr << "PulseAudioIO::streamStateChanged: Playback ready" << endl;
+                log("streamStateChanged: Playback ready");
                 m_playbackReady = true;
             }                
 
@@ -557,11 +562,13 @@ PulseAudioIO::streamStateChanged(pa_stream *stream)
                 m_source->setSystemPlaybackSampleRate(m_sampleRate);
                 m_source->setSystemPlaybackChannelCount(m_outSpec.channels);
                 if (pa_stream_get_latency(m_out, &latency, &negative)) {
-                    cerr << "PulseAudioIO::streamStateChanged: Failed to query latency" << endl;
+                    log("streamStateChanged: Failed to query playback latency");
                 } else {
-                    cerr << "Latency = " << latency << " usec" << endl;
+                    ostringstream os;
                     int latframes = latencyFrames(latency);
-                    cerr << "that's " << latframes << " frames" << endl;
+                    os << "playback latency = " << latency << " usec, "
+                       << latframes << " frames";
+                    log(os.str());
                     m_source->setSystemPlaybackLatency(latframes);
                 }
             }
@@ -569,11 +576,13 @@ PulseAudioIO::streamStateChanged(pa_stream *stream)
                 m_target->setSystemRecordSampleRate(m_sampleRate);
                 m_target->setSystemRecordChannelCount(m_inSpec.channels);
                 if (pa_stream_get_latency(m_out, &latency, &negative)) {
-                    cerr << "PulseAudioIO::streamStateChanged: Failed to query latency" << endl;
+                    log("streamStateChanged: Failed to query record latency");
                 } else {
-                    cerr << "Latency = " << latency << " usec" << endl;
+                    ostringstream os;
                     int latframes = latencyFrames(latency);
-                    cerr << "that's " << latframes << " frames" << endl;
+                    os << "record latency = " << latency << " usec, "
+                       << latframes << " frames";
+                    log(os.str());
                     m_target->setSystemRecordLatency(latframes);
                 }
             }
@@ -583,8 +592,8 @@ PulseAudioIO::streamStateChanged(pa_stream *stream)
 
         case PA_STREAM_FAILED:
         default:
-            cerr << "PulseAudioIO::streamStateChanged: Error: "
-                 << pa_strerror(pa_context_errno(m_context)) << endl;
+            log(string("streamStateChanged: Error: ") +
+                pa_strerror(pa_context_errno(m_context)));
             //!!! do something...
             break;
     }
@@ -690,12 +699,11 @@ PulseAudioIO::contextStateChanged()
 
         case PA_CONTEXT_READY:
         {
-            cerr << "PulseAudioIO::contextStateChanged: Ready"
-                      << endl;
+            log("contextStateChanged: Ready");
 
             m_in = pa_stream_new(m_context, "Capture", &m_inSpec, 0);
             if (!m_in) {
-                cerr << "PulseAudioIO::contextStateChanged: Failed to create capture stream" << endl;
+                log("contextStateChanged: Failed to create capture stream");
                 return;
             }
             
@@ -713,12 +721,12 @@ PulseAudioIO::contextStateChanged()
             }
             
             if (pa_stream_connect_record (m_in, 0, 0, flags)) {
-                cerr << "PulseAudioIO: Failed to connect record stream" << endl;
+                log("contextStateChanged: Failed to connect record stream");
             }
 
             m_out = pa_stream_new(m_context, "Playback", &m_outSpec, 0);
             if (!m_out) {
-                cerr << "PulseAudioIO::contextStateChanged: Failed to create playback stream" << endl;
+                log("contextStateChanged: Failed to create playback stream");
                 return;
             }
             
@@ -734,20 +742,20 @@ PulseAudioIO::contextStateChanged()
             }
 
             if (pa_stream_connect_playback(m_out, 0, 0, flags, 0, 0)) { 
-                cerr << "PulseAudioIO: Failed to connect playback stream" << endl;
+                log("contextStateChanged: Failed to connect playback stream");
             }
 
             break;
         }
 
         case PA_CONTEXT_TERMINATED:
-            cerr << "PulseAudioIO::contextStateChanged: Terminated" << endl;
+            log("contextStateChanged: Terminated");
             break;
 
         case PA_CONTEXT_FAILED:
         default:
-            cerr << "PulseAudioIO::contextStateChanged: Error: "
-                 << pa_strerror(pa_context_errno(m_context)) << endl;
+            log(string("contextStateChanged: Error: ") +
+                pa_strerror(pa_context_errno(m_context)));
             break;
     }
 
@@ -759,7 +767,7 @@ PulseAudioIO::contextStateChanged()
 void
 PulseAudioIO::streamOverflowStatic(pa_stream *, void *data)
 {
-    cerr << "PulseAudioIO::streamOverflowStatic: Overflow!" << endl;
+    log("streamOverflowStatic: Overflow!");
 
     PulseAudioIO *io = (PulseAudioIO *)data;
 
@@ -770,7 +778,7 @@ PulseAudioIO::streamOverflowStatic(pa_stream *, void *data)
 void
 PulseAudioIO::streamUnderflowStatic(pa_stream *, void *data)
 {
-    cerr << "PulseAudioIO::streamUnderflowStatic: Underflow!" << endl;
+    log("streamUnderflowStatic: Underflow!");
     
     PulseAudioIO *io = (PulseAudioIO *)data;
 

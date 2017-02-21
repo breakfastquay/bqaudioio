@@ -38,16 +38,36 @@
 namespace breakfastquay {
 
 class SystemRecordSource;
-class ApplicationRecordTarget;
 class SystemPlaybackTarget;
-class ApplicationPlaybackSource;
 class SystemAudioIO;
+
+class ApplicationRecordTarget;
+class ApplicationPlaybackSource;
 
 class AudioFactory 
 {
 public:
+    struct LogCallback {
+        virtual ~LogCallback() { }
+        virtual void log(std::string) const = 0;
+    };
+
+    /**
+     * Set a log callback to be used globally by the bqaudioio
+     * classes. The default is no callback, and this default may be
+     * restored by passing nullptr to this function. If the logger is
+     * non-null, any debug information that may otherwise have been
+     * written to cerr will be sent to its log method.
+     *
+     * The caller retains ownership of the logger and must ensure
+     * that it is not destroyed before the last audio driver has been
+     * closed (or the next call to setLogCallback).
+     */
+    static void setLogCallback(LogCallback *logger);
+    
     static std::vector<std::string> getImplementationNames();
     static std::string getImplementationDescription(std::string implName);
+
     static std::vector<std::string> getRecordDeviceNames(std::string implName);
     static std::vector<std::string> getPlaybackDeviceNames(std::string implName);
 

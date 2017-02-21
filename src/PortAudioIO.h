@@ -38,6 +38,7 @@
 #include <portaudio.h>
 
 #include "SystemAudioIO.h"
+#include "AudioFactory.h"
 #include "Mode.h"
 
 #include <vector>
