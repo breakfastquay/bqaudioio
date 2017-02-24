@@ -94,7 +94,8 @@ public:
      * Open the audio driver for duplex (i.e recording + playback) I/O
      * using the given driver and device preferences. Provide the
      * given record target and play source objects to the audio I/O
-     * and return the new audio I/O.
+     * and return the new audio I/O. The record target and play source
+     * must be non-null.
      *
      * Caller owns the returned object and must delete it when
      * done. Note that the record target and playback source must
@@ -108,6 +109,11 @@ public:
      * requested or if only one implementation is available; otherwise
      * we don't know which of the failed implementations to return an
      * error from.)
+     *
+     * Note that one possible cause of failure is that it was possible
+     * to open one of the playback and record sides but not both. You
+     * may want (for example) to fall back to createCallbackPlayTarget
+     * if your application can proceed without audio input.
      */
     static SystemAudioIO *
     createCallbackIO(ApplicationRecordTarget *recordTarget,
@@ -118,7 +124,8 @@ public:
     /**
      * Open the audio driver in record-only mode using the given
      * driver and device preferences. Provide the given record target
-     * to the audio source and return the new audio source.
+     * to the audio source and return the new audio source. The record
+     * target must be non-null.
      *
      * Caller owns the returned object and must delete it when
      * done. Note that the record target must outlive the returned
@@ -141,7 +148,8 @@ public:
     /**
      * Open the audio driver in playback-only mode using the given
      * driver and device preferences. Provide the given playback
-     * source to the audio source and return the new audio target.
+     * source to the audio source and return the new audio target. The
+     * playback source must be non-null.
      *
      * Caller owns the returned object and must delete it when
      * done. Note that the playback source must outlive the returned
