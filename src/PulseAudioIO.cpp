@@ -93,7 +93,7 @@ PulseAudioIO::PulseAudioIO(Mode mode,
     m_suspended(false)
 {
     log("starting");
-    
+
     if (m_mode == Mode::Playback) {
         m_target = 0;
     }
@@ -116,18 +116,19 @@ PulseAudioIO::PulseAudioIO(Mode mode,
     int sourceRate = 0;
     int targetRate = 0;
 
-    m_outSpec.channels = 2;
     if (m_source) {
         sourceRate = m_source->getApplicationSampleRate();
         if (sourceRate != 0) {
             m_sampleRate = sourceRate;
         }
+        m_outSpec.channels = 2;
         if (m_source->getApplicationChannelCount() != 0) {
             m_outSpec.channels = (uint8_t)m_source->getApplicationChannelCount();
         }
+    } else {
+        m_outSpec.channels = 0;
     }
     
-    m_inSpec.channels = 2;
     if (m_target) {
         targetRate = m_target->getApplicationSampleRate();
         if (targetRate != 0) {
@@ -139,9 +140,12 @@ PulseAudioIO::PulseAudioIO(Mode mode,
                 m_sampleRate = targetRate;
             }
         }
+        m_inSpec.channels = 2;
         if (m_target->getApplicationChannelCount() != 0) {
             m_inSpec.channels = (uint8_t)m_target->getApplicationChannelCount();
         }
+    } else {
+        m_inSpec.channels = 0;
     }
 
     if (m_sampleRate == 0) {
@@ -180,47 +184,53 @@ PulseAudioIO::~PulseAudioIO()
 {
     log("closing");
 
-    {
-        if (m_loop) {
-            pa_mainloop_wakeup(m_loop);
-        }
+    if (m_context) {
+
+        // (if we have no m_context, then we never started up PA
+        // successfully at all so there's nothing to do for this bit)
+    
+        {
+            if (m_loop) {
+                pa_mainloop_wakeup(m_loop);
+            }
         
-        lock_guard<mutex> cguard(m_contextMutex);
-        lock_guard<mutex> lguard(m_loopMutex);
-        lock_guard<mutex> sguard(m_streamMutex);
+            lock_guard<mutex> cguard(m_contextMutex);
+            lock_guard<mutex> lguard(m_loopMutex);
+            lock_guard<mutex> sguard(m_streamMutex);
 
-        m_done = true;
+            m_done = true;
 
-        if (m_loop) {
-            pa_signal_done();
-            pa_mainloop_quit(m_loop, 0);
+            if (m_loop) {
+                pa_signal_done();
+                pa_mainloop_quit(m_loop, 0);
+            }
+        }
+    
+        m_loopthread.join();
+
+        {
+            lock_guard<mutex> sguard(m_streamMutex);
+    
+            if (m_in) {
+                pa_stream_unref(m_in);
+                m_in = 0;
+            }
+            if (m_out) {
+                pa_stream_unref(m_out);
+                m_out = 0;
+            }
+        }
+
+        {
+            lock_guard<mutex> cguard(m_contextMutex);
+    
+            if (m_context) {
+                pa_context_unref(m_context);
+                m_context = 0;
+            }
         }
     }
     
-    m_loopthread.join();
-
-    {
-        lock_guard<mutex> sguard(m_streamMutex);
-    
-        if (m_in) {
-            pa_stream_unref(m_in);
-            m_in = 0;
-        }
-        if (m_out) {
-            pa_stream_unref(m_out);
-            m_out = 0;
-        }
-    }
-
-    {
-        lock_guard<mutex> cguard(m_contextMutex);
-    
-        if (m_context) {
-            pa_context_unref(m_context);
-            m_context = 0;
-        }
-    }
-
     deallocate_channels(m_buffers, m_bufferChannels);
     deallocate(m_interleaved);
     
@@ -701,50 +711,49 @@ PulseAudioIO::contextStateChanged()
         {
             log("contextStateChanged: Ready");
 
-            m_in = pa_stream_new(m_context, "Capture", &m_inSpec, 0);
-            if (!m_in) {
-                log("contextStateChanged: Failed to create capture stream");
-                return;
-            }
-            
-            pa_stream_set_state_callback(m_in, streamStateChangedStatic, this);
-            pa_stream_set_read_callback(m_in, streamReadStatic, this);
-            pa_stream_set_overflow_callback(m_in, streamOverflowStatic, this);
-            pa_stream_set_underflow_callback(m_in, streamUnderflowStatic, this);
-
             pa_stream_flags_t flags;
-
-            flags = pa_stream_flags_t(PA_STREAM_INTERPOLATE_TIMING |
-                                      PA_STREAM_AUTO_TIMING_UPDATE);
-            if (m_suspended) {
-                flags = pa_stream_flags_t(flags | PA_STREAM_START_CORKED);
-            }
-            
-            if (pa_stream_connect_record (m_in, 0, 0, flags)) {
-                log("contextStateChanged: Failed to connect record stream");
-            }
-
-            m_out = pa_stream_new(m_context, "Playback", &m_outSpec, 0);
-            if (!m_out) {
-                log("contextStateChanged: Failed to create playback stream");
-                return;
-            }
-            
-            pa_stream_set_state_callback(m_out, streamStateChangedStatic, this);
-            pa_stream_set_write_callback(m_out, streamWriteStatic, this);
-            pa_stream_set_overflow_callback(m_out, streamOverflowStatic, this);
-            pa_stream_set_underflow_callback(m_out, streamUnderflowStatic, this);
-
             flags = pa_stream_flags_t(PA_STREAM_INTERPOLATE_TIMING |
                                       PA_STREAM_AUTO_TIMING_UPDATE);
             if (m_suspended) {
                 flags = pa_stream_flags_t(flags | PA_STREAM_START_CORKED);
             }
 
-            if (pa_stream_connect_playback(m_out, 0, 0, flags, 0, 0)) { 
-                log("contextStateChanged: Failed to connect playback stream");
+            if (m_inSpec.channels > 0) {
+                
+                m_in = pa_stream_new(m_context, "Capture", &m_inSpec, 0);
+
+                if (!m_in) {
+                    log("contextStateChanged: Failed to create capture stream");
+                } else {
+                    pa_stream_set_state_callback(m_in, streamStateChangedStatic, this);
+                    pa_stream_set_read_callback(m_in, streamReadStatic, this);
+                    pa_stream_set_overflow_callback(m_in, streamOverflowStatic, this);
+                    pa_stream_set_underflow_callback(m_in, streamUnderflowStatic, this);
+            
+                    if (pa_stream_connect_record (m_in, 0, 0, flags)) {
+                        log("contextStateChanged: Failed to connect record stream");
+                    }
+                }
             }
 
+            if (m_outSpec.channels > 0) {
+
+                m_out = pa_stream_new(m_context, "Playback", &m_outSpec, 0);
+
+                if (!m_out) {
+                    log("contextStateChanged: Failed to create playback stream");
+                } else {
+                    pa_stream_set_state_callback(m_out, streamStateChangedStatic, this);
+                    pa_stream_set_write_callback(m_out, streamWriteStatic, this);
+                    pa_stream_set_overflow_callback(m_out, streamOverflowStatic, this);
+                    pa_stream_set_underflow_callback(m_out, streamUnderflowStatic, this);
+
+                    if (pa_stream_connect_playback(m_out, 0, 0, flags, 0, 0)) { 
+                        log("contextStateChanged: Failed to connect playback stream");
+                    }
+                }
+            }
+            
             break;
         }
 
