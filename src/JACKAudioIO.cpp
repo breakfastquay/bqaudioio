@@ -242,7 +242,7 @@ JACKAudioIO::setup(bool connectRecord, bool connectPlayback)
 
         while (int(m_outputs.size()) < channelsPlay) {
 	
-            char name[20];
+            char name[50];
             jack_port_t *port;
 
             sprintf(name, "out %ld", long(m_outputs.size() + 1));
@@ -280,7 +280,7 @@ JACKAudioIO::setup(bool connectRecord, bool connectPlayback)
 
         while (int(m_inputs.size()) < channelsRec) {
 	
-            char name[20];
+            char name[50];
             jack_port_t *port;
 
             sprintf(name, "in %ld", long(m_inputs.size() + 1));
