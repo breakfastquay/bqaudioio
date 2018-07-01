@@ -32,7 +32,7 @@
 #ifndef BQAUDIOIO_DYNAMIC_JACK_H
 #define BQAUDIOIO_DYNAMIC_JACK_H
 
-#ifdef BUILD_STATIC
+#if ( defined BUILD_STATIC ) || ( defined DYNAMIC_JACK )
 #if (! defined _WIN32) && (! defined __APPLE__)
 
 // Some lunacy to enable JACK support in static builds.  JACK isn't
@@ -56,6 +56,10 @@
 namespace breakfastquay {
 
 //#define DEBUG_AUDIO_JACK_TARGET 1
+
+#ifdef __GNUC__
+#pragma GCC diagnostic ignored "-Wunused-function"
+#endif
 
 static void *symbol(const char *name)
 {
@@ -221,6 +225,7 @@ dynamic1(int, jack_deactivate, jack_client_t *, 1);
 dynamic1(int, jack_client_close, jack_client_t *, 1);
 dynamic1(jack_nframes_t, jack_port_get_latency, jack_port_t *, 0);
 dynamic1(const char *, jack_port_name, const jack_port_t *, 0);
+dynamic1(jack_nframes_t, jack_frame_time, jack_client_t *, 0);
 
 #define jack_client_new dynamic_jack_client_new
 #define jack_client_open dynamic_jack_client_open
@@ -239,6 +244,7 @@ dynamic1(const char *, jack_port_name, const jack_port_t *, 0);
 #define jack_connect dynamic_jack_connect
 #define jack_port_get_buffer dynamic_jack_port_get_buffer
 #define jack_port_get_latency_range dynamic_jack_port_get_latency_range
+#define jack_frame_time dynamic_jack_frame_time
 
 }
 
@@ -246,6 +252,6 @@ dynamic1(const char *, jack_port_name, const jack_port_t *, 0);
 
 #endif // (! defined _WIN32) && (! defined __APPLE__)
 
-#endif // BUILD_STATIC
+#endif // BUILD_STATIC || DYNAMIC_JACK
 
 #endif // BQAUDIOIO_DYNAMIC_JACK_H
