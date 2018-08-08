@@ -246,7 +246,7 @@ PulseAudioIO::threadRun()
 
         {
 #ifdef DEBUG_PULSE_AUDIO_IO
-            cerr << "PulseAudioIO::threadRun: locking loop mutex for prepare" << endl;
+//            cerr << "PulseAudioIO::threadRun: locking loop mutex for prepare" << endl;
 #endif
             lock_guard<mutex> lguard(m_loopMutex);
             if (m_done) return;
@@ -261,7 +261,7 @@ PulseAudioIO::threadRun()
 
         {
 #ifdef DEBUG_PULSE_AUDIO_IO
-            cerr << "PulseAudioIO::threadRun: locking loop mutex for poll" << endl;
+//            cerr << "PulseAudioIO::threadRun: locking loop mutex for poll" << endl;
 #endif
             lock_guard<mutex> lguard(m_loopMutex);
             if (m_done) return;
@@ -275,7 +275,7 @@ PulseAudioIO::threadRun()
 
         {
 #ifdef DEBUG_PULSE_AUDIO_IO
-            cerr << "PulseAudioIO::threadRun: locking loop mutex for dispatch" << endl;
+//            cerr << "PulseAudioIO::threadRun: locking loop mutex for dispatch" << endl;
 #endif
             lock_guard<mutex> lguard(m_loopMutex);
             if (m_done) return;
