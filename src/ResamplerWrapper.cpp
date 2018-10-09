@@ -37,8 +37,10 @@
 #include "bqvec/VectorOps.h"
 
 #include "ApplicationPlaybackSource.h"
+#include "Log.h"
 
 #include <iostream>
+#include <sstream>
 
 //#define DEBUG_RESAMPLER_WRAPPER 1
 
@@ -209,16 +211,31 @@ ResamplerWrapper::getSourceSamples(float *const *samples, int nchannels, int nfr
 
     if (received > 0) {
 
-        int resampled = m_resampler->resample
-            (m_ptrs, m_resampledSize - m_resampledFill,
-             m_in, received,
-             ratio);
+        try {
+            int resampled = m_resampler->resample
+                (m_ptrs, m_resampledSize - m_resampledFill,
+                 m_in, received,
+                 ratio);
 
-        m_resampledFill += resampled;
-
+            m_resampledFill += resampled;
+        
 #ifdef DEBUG_RESAMPLER_WRAPPER
-        cerr << "ResamplerWrapper: resampled = " << resampled << ", m_resampledFill now = " << m_resampledFill << endl;
+            cerr << "ResamplerWrapper: resampled = " << resampled << ", m_resampledFill now = " << m_resampledFill << endl;
 #endif
+
+        } catch (const breakfastquay::Resampler::Exception &e) {
+            static bool errorShown = false;
+            if (!errorShown) {
+                ostringstream os;
+                os << "ResamplerWrapper: Failed to resample " << received
+                   << " sample(s) at a ratio of " << ratio
+                   << " (NB this error will not be printed again, even if "
+                   << "the problem persists)";
+                Log::log(os.str());
+                cerr << "ERROR: " << os.str() << endl;
+                errorShown = true;
+            }
+        }
     }
             
     if (m_resampledFill < nframes) {
