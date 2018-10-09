@@ -116,9 +116,14 @@ PulseAudioIO::PulseAudioIO(Mode mode,
     int sourceRate = 0;
     int targetRate = 0;
 
+    ostringstream os;
+
     if (m_source) {
         sourceRate = m_source->getApplicationSampleRate();
         if (sourceRate != 0) {
+            os << "application source requests sample rate "
+               << sourceRate << ", will try to comply";
+            log(os.str());
             m_sampleRate = sourceRate;
         }
         m_outSpec.channels = 2;
@@ -133,10 +138,12 @@ PulseAudioIO::PulseAudioIO(Mode mode,
         targetRate = m_target->getApplicationSampleRate();
         if (targetRate != 0) {
             if (sourceRate != 0 && sourceRate != targetRate) {
-                ostringstream os;
-                os << "WARNING: PulseAudioIO: Source and target both provide sample rates, but different ones (source " << sourceRate << ", target " << targetRate << ") - using source rate";
+                os << "WARNING: Source and target both provide sample rates, but different ones (source " << sourceRate << ", target " << targetRate << ") - using source rate";
                 log(os.str());
             } else {
+                os << "application target requests sample rate "
+                   << targetRate << ", will try to comply";
+                log(os.str());
                 m_sampleRate = targetRate;
             }
         }
@@ -149,6 +156,7 @@ PulseAudioIO::PulseAudioIO(Mode mode,
     }
 
     if (m_sampleRate == 0) {
+        log("neither source nor target requested a sample rate, requesting default rate of 44100");
         m_sampleRate = 44100;
     }
 
