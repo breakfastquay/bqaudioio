@@ -89,24 +89,24 @@ public:
     // These functions are passed through to the wrapped
     // ApplicationPlaybackSource
     
-    virtual std::string getClientName() const;
-    virtual int getApplicationSampleRate() const;
-    virtual int getApplicationChannelCount() const;
+    std::string getClientName() const override;
+    int getApplicationSampleRate() const override;
+    int getApplicationChannelCount() const override;
 
-    virtual void setSystemPlaybackBlockSize(int);
-    virtual void setSystemPlaybackSampleRate(int);
-    virtual void setSystemPlaybackChannelCount(int);
-    virtual void setSystemPlaybackLatency(int);
+    void setSystemPlaybackBlockSize(int) override;
+    void setSystemPlaybackSampleRate(int) override;
+    void setSystemPlaybackChannelCount(int) override;
+    void setSystemPlaybackLatency(int) override;
 
-    virtual void setOutputLevels(float peakLeft, float peakRight);
-    virtual void audioProcessingOverload();
+    void setOutputLevels(float peakLeft, float peakRight) override;
+    void audioProcessingOverload() override;
 
     /** 
      * Request some samples from the wrapped
      * ApplicationPlaybackSource, resample them if necessary, and
      * return them to the target
      */
-    virtual int getSourceSamples(float *const *samples, int nchannels, int nframes);
+    int getSourceSamples(float *const *samples, int nchannels, int nframes) override;
 
 private:
     ApplicationPlaybackSource *m_source;

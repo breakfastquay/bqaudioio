@@ -65,15 +65,15 @@ public:
     static std::vector<std::string> getRecordDeviceNames();
     static std::vector<std::string> getPlaybackDeviceNames();
     
-    virtual bool isSourceOK() const;
-    virtual bool isSourceReady() const;
-    virtual bool isTargetOK() const;
-    virtual bool isTargetReady() const;
+    bool isSourceOK() const override;
+    bool isSourceReady() const override;
+    bool isTargetOK() const override;
+    bool isTargetReady() const override;
 
-    virtual double getCurrentTime() const;
+    double getCurrentTime() const override;
 
-    virtual void suspend();
-    virtual void resume();
+    void suspend() override;
+    void resume() override;
 
     std::string getStartupErrorString() const { return m_startupError; }
 
