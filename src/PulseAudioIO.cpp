@@ -92,7 +92,7 @@ PulseAudioIO::PulseAudioIO(Mode mode,
     m_playbackReady(false),
     m_suspended(false)
 {
-    log("starting");
+    log("PulseAudioIO: starting");
 
     if (m_mode == Mode::Playback) {
         m_target = 0;
@@ -190,7 +190,7 @@ PulseAudioIO::PulseAudioIO(Mode mode,
 
 PulseAudioIO::~PulseAudioIO()
 {
-    log("closing");
+    log("PulseAudioIO: closing");
 
     if (m_context) {
 
@@ -259,27 +259,20 @@ PulseAudioIO::threadRun()
             lock_guard<mutex> lguard(m_loopMutex);
             if (m_done) return;
 
-            //!!! not nice
-            rv = pa_mainloop_prepare(m_loop, 1000);
+            rv = pa_mainloop_prepare(m_loop, 100);
             if (rv < 0) {
                 log("ERROR: threadRun: Failure in pa_mainloop_prepare");
                 return;
             }
-        }
 
-        {
-#ifdef DEBUG_PULSE_AUDIO_IO
-//            cerr << "PulseAudioIO::threadRun: locking loop mutex for poll" << endl;
-#endif
-            lock_guard<mutex> lguard(m_loopMutex);
-            if (m_done) return;
             rv = pa_mainloop_poll(m_loop);
+            if (rv < 0) {
+                log("ERROR: threadRun: Failure in pa_mainloop_poll");
+                return;
+            }
         }
 
-        if (rv < 0) {
-            log("ERROR: threadRun: Failure in pa_mainloop_poll");
-            return;
-        }
+        this_thread::yield();
 
         {
 #ifdef DEBUG_PULSE_AUDIO_IO
@@ -294,6 +287,8 @@ PulseAudioIO::threadRun()
                 return;
             }
         }
+
+        this_thread::yield();
     }
 }
 
@@ -635,7 +630,15 @@ PulseAudioIO::suspend()
     }
 
     lock_guard<mutex> lguard(m_loopMutex);
+#ifdef DEBUG_PULSE_AUDIO_IO
+    cerr << "PulseAudioIO::suspend: loop mutex ok" << endl;
+#endif
+    
     lock_guard<mutex> sguard(m_streamMutex);
+#ifdef DEBUG_PULSE_AUDIO_IO
+    cerr << "PulseAudioIO::suspend: stream mutex ok" << endl;
+#endif
+
     if (m_done) return;
     
     if (m_in) {
@@ -651,7 +654,7 @@ PulseAudioIO::suspend()
     m_suspended = true;
     
 #ifdef DEBUG_PULSE_AUDIO_IO
-    cerr << "corked!" << endl;
+    cerr << "PulseAudioIO::suspend: corked!" << endl;
 #endif
 }
 
@@ -669,7 +672,14 @@ PulseAudioIO::resume()
     }
 
     lock_guard<mutex> lguard(m_loopMutex);
+#ifdef DEBUG_PULSE_AUDIO_IO
+    cerr << "PulseAudioIO::suspend: loop mutex ok" << endl;
+#endif
+
     lock_guard<mutex> sguard(m_streamMutex);
+#ifdef DEBUG_PULSE_AUDIO_IO
+    cerr << "PulseAudioIO::suspend: stream mutex ok" << endl;
+#endif
     if (m_done) return;
 
     if (m_in) {
@@ -684,7 +694,7 @@ PulseAudioIO::resume()
     m_suspended = false;
     
 #ifdef DEBUG_PULSE_AUDIO_IO
-    cerr << "uncorked!" << endl;
+    cerr << "PulseAudioIO::resume: uncorked!" << endl;
 #endif
 }
 
