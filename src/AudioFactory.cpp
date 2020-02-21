@@ -35,6 +35,11 @@
 #include "PortAudioIO.h"
 #include "PulseAudioIO.h"
 
+// These two only need to be included to avoid puzzling compile errors
+// in the case where no IO subsystem is defined at all
+#include "SystemAudioIO.h"
+#include "Mode.h"
+
 #include "Log.h"
 
 #include <iostream>
