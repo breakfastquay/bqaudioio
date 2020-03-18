@@ -54,13 +54,13 @@ ResamplerWrapper::ResamplerWrapper(ApplicationPlaybackSource *source) :
     m_source(source),
     m_targetRate(44100), // will update when the target calls back
     m_sourceRate(0),
-    m_resampler(0),
-    m_in(0),
+    m_resampler(nullptr),
+    m_in(nullptr),
     m_inSize(0),
-    m_resampled(0),
+    m_resampled(nullptr),
     m_resampledSize(0),
     m_resampledFill(0),
-    m_ptrs(0)
+    m_ptrs(nullptr)
 {
     m_sourceRate = m_source->getApplicationSampleRate();
 
@@ -72,31 +72,21 @@ ResamplerWrapper::ResamplerWrapper(ApplicationPlaybackSource *source) :
     
     m_channels = m_source->getApplicationChannelCount();
 
-    Resampler::Parameters params;
-    params.quality = Resampler::FastestTolerable;
-    params.maxBufferSize = defaultMaxBufferSize;
-    if (m_sourceRate != 0) {
-        params.initialSampleRate = m_sourceRate;
-    }
-    m_resampler = new Resampler(params, m_channels);
-    
-    m_ptrs = new float *[m_channels];
-    setupBuffersFor(defaultMaxBufferSize);
+    reconstructResampler();
 }
 
 ResamplerWrapper::~ResamplerWrapper()
 {
-    delete m_resampler;
-    delete[] m_ptrs;
-    if (m_in) {
-	deallocate_channels(m_in, m_channels);
-	deallocate_channels(m_resampled, m_channels);
+    {
+        lock_guard<mutex> guard(m_mutex);
+        deconstructResampler();
     }
 }
 
 void
 ResamplerWrapper::changeApplicationSampleRate(int newRate)
 {
+    lock_guard<mutex> guard(m_mutex);
     m_sourceRate = newRate;
     setupBuffersFor(defaultMaxBufferSize);
 }
@@ -132,13 +122,24 @@ ResamplerWrapper::setSystemPlaybackBlockSize(int)
 void
 ResamplerWrapper::setSystemPlaybackSampleRate(int rate)
 {
-    m_targetRate = rate;
+    {
+        lock_guard<mutex> guard(m_mutex);
+        m_targetRate = rate;
+    }
     m_source->setSystemPlaybackSampleRate(m_targetRate);
 }
 
 void
 ResamplerWrapper::setSystemPlaybackChannelCount(int c)
 {
+    {
+        lock_guard<mutex> guard(m_mutex);
+        if (c != m_channels) {
+            deconstructResampler();
+            m_channels = c;
+            reconstructResampler();
+        }
+    }
     m_source->setSystemPlaybackChannelCount(c);
 }
 
@@ -163,13 +164,94 @@ ResamplerWrapper::audioProcessingOverload()
 void
 ResamplerWrapper::reset()
 {
+    lock_guard<mutex> guard(m_mutex);
     if (m_resampler) m_resampler->reset();
     m_resampledFill = 0;
+}
+
+void
+ResamplerWrapper::deconstructResampler()
+{
+    delete m_resampler;
+    m_resampler = nullptr;
+
+    delete[] m_ptrs;
+    m_ptrs = nullptr;
+
+    if (m_in) {
+	deallocate_channels(m_in, m_channels);
+        m_in = nullptr;
+
+	deallocate_channels(m_resampled, m_channels);
+        m_resampled = nullptr;
+    }
+}
+
+void
+ResamplerWrapper::reconstructResampler()
+{
+    if (m_resampler) {
+        deconstructResampler();
+    }
+        
+    Resampler::Parameters params;
+    params.quality = Resampler::FastestTolerable;
+    params.maxBufferSize = defaultMaxBufferSize;
+    if (m_sourceRate != 0) {
+        params.initialSampleRate = m_sourceRate;
+    }
+
+    m_resampler = new Resampler(params, m_channels);
+    
+    m_ptrs = new float *[m_channels];
+    setupBuffersFor(defaultMaxBufferSize);
+}
+
+void
+ResamplerWrapper::setupBuffersFor(int nframes)
+{
+    if (m_sourceRate == 0) return;
+    if (m_sourceRate == m_targetRate) return;
+
+#ifdef DEBUG_RESAMPLER_WRAPPER
+    cerr << "ResamplerWrapper::setupBuffersFor: Source rate "
+         << m_sourceRate << " -> target rate " << m_targetRate << endl;
+#endif
+
+    int slack = 100;
+    double ratio = double(m_targetRate) / double(m_sourceRate);
+    if (ratio > 50.0) {
+        slack = int(ratio * 2);
+    }
+    int newResampledSize = nframes + slack;
+    int newInSize = int(newResampledSize / ratio);
+
+#ifdef DEBUG_RESAMPLER_WRAPPER
+    cerr << "newResampledSize = " << newResampledSize << ", newInSize = " << newInSize << endl;
+#endif
+    
+    if (!m_resampled || newResampledSize > m_resampledSize) {
+        m_resampled = reallocate_and_zero_extend_channels
+            (m_resampled,
+             m_channels, m_resampledSize,
+             m_channels, newResampledSize);
+        m_resampledSize = newResampledSize;
+    }
+
+    if (!m_in || newInSize > m_inSize) {
+	m_in = reallocate_and_zero_extend_channels
+            (m_in,
+             m_channels, m_inSize,
+             m_channels, newInSize);
+	m_inSize = newInSize;
+    }
 }
 
 int
 ResamplerWrapper::getSourceSamples(float *const *samples, int nchannels, int nframes)
 {
+    lock_guard<mutex> guard(m_mutex);
+    
 #ifdef DEBUG_RESAMPLER_WRAPPER
     cerr << "ResamplerWrapper::getSourceSamples(" << nframes << "): source rate = " << m_sourceRate << ", target rate = " << m_targetRate << ", channels = " << m_channels << endl;
 #endif
@@ -261,46 +343,6 @@ ResamplerWrapper::getSourceSamples(float *const *samples, int nchannels, int nfr
 #endif
 
     return nframes;
-}
-
-void
-ResamplerWrapper::setupBuffersFor(int nframes)
-{
-    if (m_sourceRate == 0) return;
-    if (m_sourceRate == m_targetRate) return;
-
-#ifdef DEBUG_RESAMPLER_WRAPPER
-    cerr << "ResamplerWrapper::setupBuffersFor: Source rate "
-         << m_sourceRate << " -> target rate " << m_targetRate << endl;
-#endif
-
-    int slack = 100;
-    double ratio = double(m_targetRate) / double(m_sourceRate);
-    if (ratio > 50.0) {
-        slack = int(ratio * 2);
-    }
-    int newResampledSize = nframes + slack;
-    int newInSize = int(newResampledSize / ratio);
-
-#ifdef DEBUG_RESAMPLER_WRAPPER
-    cerr << "newResampledSize = " << newResampledSize << ", newInSize = " << newInSize << endl;
-#endif
-    
-    if (!m_resampled || newResampledSize > m_resampledSize) {
-        m_resampled = reallocate_and_zero_extend_channels
-            (m_resampled,
-             m_channels, m_resampledSize,
-             m_channels, newResampledSize);
-        m_resampledSize = newResampledSize;
-    }
-
-    if (!m_in || newInSize > m_inSize) {
-	m_in = reallocate_and_zero_extend_channels
-            (m_in,
-             m_channels, m_inSize,
-             m_channels, newInSize);
-	m_inSize = newInSize;
-    }
 }
 
 }

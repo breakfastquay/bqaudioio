@@ -35,6 +35,8 @@
 
 #include "ApplicationPlaybackSource.h"
 
+#include <mutex>
+
 namespace breakfastquay {
 
 class Resampler;
@@ -65,6 +67,10 @@ public:
      * implementing another ApplicationPlaybackSource interface that
      * draws from the same source data but resampling to a playback
      * target's expected sample rate automatically.
+     *
+     * The wrapper does not take ownership of the wrapped
+     * ApplicationPlaybackSource, whose lifespan must exceed that of
+     * this object.
      */
     ResamplerWrapper(ApplicationPlaybackSource *source);
 
@@ -124,6 +130,11 @@ private:
     int m_resampledFill;
     float **m_ptrs;
 
+    std::mutex m_mutex;
+
+    // These three should be called with m_mutex held already
+    void deconstructResampler();
+    void reconstructResampler();
     void setupBuffersFor(int reqsize);
 
     ResamplerWrapper(const ResamplerWrapper &)=delete;
