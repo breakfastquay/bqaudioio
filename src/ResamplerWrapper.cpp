@@ -115,8 +115,11 @@ ResamplerWrapper::getApplicationChannelCount() const
 }
 
 void
-ResamplerWrapper::setSystemPlaybackBlockSize(int)
+ResamplerWrapper::setSystemPlaybackBlockSize(int sz)
 {
+    cerr << "NOTE: ResamplerWrapper::setSystemPlaybackBlockSize called "
+         << "with size = " << sz << "; not passing to wrapped source, as "
+         << "actual block size will vary" << endl;
 }
 
 void
