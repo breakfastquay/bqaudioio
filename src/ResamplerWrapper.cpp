@@ -129,7 +129,10 @@ ResamplerWrapper::setSystemPlaybackSampleRate(int rate)
         lock_guard<mutex> guard(m_mutex);
         m_targetRate = rate;
     }
-    m_source->setSystemPlaybackSampleRate(m_targetRate);
+
+    // We do the resampling around here - pretend to our own source
+    // that their preferred rate is always the same as the device's
+    m_source->setSystemPlaybackSampleRate(m_sourceRate);
 }
 
 void
