@@ -1,0 +1,7 @@
+syntax: glob
+*.o
+*~
+*.a
+*.so
+*.dll
+*.dylib
