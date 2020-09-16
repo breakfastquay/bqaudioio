@@ -37,6 +37,7 @@ namespace breakfastquay {
 class Suspendable
 {
 public:
+    virtual ~Suspendable() {}
     virtual void suspend() = 0;
     virtual void resume() = 0;
 };
