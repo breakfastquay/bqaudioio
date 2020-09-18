@@ -1,40 +1,32 @@
 
-SOURCES	:= $(wildcard src/*.cpp)
-HEADERS	:= $(wildcard src/*.h) $(wildcard bqaudioio/*.h)
-OBJECTS	:= $(patsubst %.cpp,%.o,$(SOURCES))
-LIBRARY	:= libbqaudioio.a
+# Place in AUDIOIO_DEFINES the relevant options for the audio
+# recording and playback APIs you wish to compile support for.
+#
+# Available options are
+#
+#  -DHAVE_PORTAUDIO     General cross-platform support using PortAudio
+#  -DHAVE_JACK          Cross-platform low-latency audio using JACK
+#  -DHAVE_LIBPULSE      Direct PulseAudio support on Linux
+#
+# You may define more than one of these.
 
-CXXFLAGS := -std=c++11 -I. -I./bqaudioio -I../bqvec -I../bqresample -DHAVE_JACK -DHAVE_LIBPULSE -DHAVE_PORTAUDIO
-
-all:	$(LIBRARY)
-
-$(LIBRARY):	$(OBJECTS)
-	ar cr $@ $^
-
-clean:		
-	rm -f $(OBJECTS)
-
-distclean:	clean
-	rm -f $(LIBRARY)
-
-depend:
-	makedepend -Y -fMakefile -I./bqaudioio $(SOURCES) $(HEADERS)
+AUDIOIO_DEFINES	:= -DHAVE_JACK -DHAVE_LIBPULSE -DHAVE_PORTAUDIO
 
 
-# DO NOT DELETE
+# Add any related includes and libraries here
+#
+THIRD_PARTY_INCLUDES	:=
+THIRD_PARTY_LIBS	:=
 
-src/SystemRecordSource.o: ./bqaudioio/SystemRecordSource.h
-src/SystemRecordSource.o: ./bqaudioio/Suspendable.h
-src/SystemRecordSource.o: ./bqaudioio/ApplicationRecordTarget.h
-src/AudioFactory.o: ./bqaudioio/AudioFactory.h src/JACKAudioIO.h
-src/AudioFactory.o: src/PortAudioIO.h src/PulseAudioIO.h
-src/SystemPlaybackTarget.o: ./bqaudioio/SystemPlaybackTarget.h
-src/SystemPlaybackTarget.o: ./bqaudioio/Suspendable.h
-src/ResamplerWrapper.o: ./bqaudioio/ResamplerWrapper.h
-src/ResamplerWrapper.o: ./bqaudioio/ApplicationPlaybackSource.h
-bqaudioio/SystemPlaybackTarget.o: ./bqaudioio/Suspendable.h
-bqaudioio/ResamplerWrapper.o: ./bqaudioio/ApplicationPlaybackSource.h
-bqaudioio/SystemAudioIO.o: ./bqaudioio/SystemRecordSource.h
-bqaudioio/SystemAudioIO.o: ./bqaudioio/Suspendable.h
-bqaudioio/SystemAudioIO.o: ./bqaudioio/SystemPlaybackTarget.h
-bqaudioio/SystemRecordSource.o: ./bqaudioio/Suspendable.h
+
+# If you are including a set of bq libraries into a project, you can
+# override variables for all of them (including all of the above) in
+# the following file, which all bq* Makefiles will include if found
+
+-include ../Makefile.inc-bq
+
+
+# This project-local Makefile describes the source files and contains
+# no routinely user-modifiable parts
+
+include build/Makefile.inc
