@@ -72,6 +72,13 @@ ResamplerWrapper::ResamplerWrapper(ApplicationPlaybackSource *source) :
     
     m_channels = m_source->getApplicationChannelCount();
 
+    {
+        ostringstream os;
+        os << "ResamplerWrapper: Initial source rate " << m_sourceRate
+           << " and channels " << m_channels;
+        Log::log(os.str());
+    }
+    
     reconstructResampler();
 }
 
@@ -87,6 +94,14 @@ void
 ResamplerWrapper::changeApplicationSampleRate(int newRate)
 {
     lock_guard<mutex> guard(m_mutex);
+
+    {
+        ostringstream os;
+        os << "ResamplerWrapper: Source rate changing from " << m_sourceRate
+           << " to " << newRate;
+        Log::log(os.str());
+    }
+
     m_sourceRate = newRate;
     setupBuffersFor(defaultMaxBufferSize);
 }
@@ -117,9 +132,11 @@ ResamplerWrapper::getApplicationChannelCount() const
 void
 ResamplerWrapper::setSystemPlaybackBlockSize(int sz)
 {
-    cerr << "NOTE: ResamplerWrapper::setSystemPlaybackBlockSize called "
-         << "with size = " << sz << "; not passing to wrapped source, as "
-         << "actual block size will vary" << endl;
+    ostringstream os;
+    os << "NOTE: ResamplerWrapper::setSystemPlaybackBlockSize called "
+       << "with size = " << sz << "; not passing to wrapped source, as "
+       << "actual block size will vary";
+    Log::log(os.str());
 }
 
 void
@@ -129,6 +146,12 @@ ResamplerWrapper::setSystemPlaybackSampleRate(int rate)
         lock_guard<mutex> guard(m_mutex);
         m_targetRate = rate;
     }
+
+    ostringstream os;
+    os << "NOTE: ResamplerWrapper::setSystemPlaybackSampleRate called "
+       << "with rate = " << rate << "; not passing to wrapped source, as "
+       << "we're doing the resampling";
+    Log::log(os.str());
 
     // We do the resampling around here - pretend to our own source
     // that their preferred rate is always the same as the device's
@@ -200,12 +223,24 @@ ResamplerWrapper::reconstructResampler()
         deconstructResampler();
     }
         
+    if (m_channels == 0) {
+        Log::log("ResamplerWrapper::reconstructResampler: Channel count is 0; not constructing a resampler until the system calls back with a non-zero channel count");
+        return;
+    }
+    
     Resampler::Parameters params;
     params.quality = Resampler::FastestTolerable;
     params.maxBufferSize = defaultMaxBufferSize;
     if (m_sourceRate != 0) {
         params.initialSampleRate = m_sourceRate;
     }
+
+    ostringstream os;
+    os << "ResamplerWrapper::reconstructResampler: Creating resampler with "
+       << "initial source rate " << params.initialSampleRate
+       << ", buffer size " << defaultMaxBufferSize
+       << ", channel count " << m_channels;
+    Log::log(os.str());
 
     m_resampler = new Resampler(params, m_channels);
     
@@ -219,11 +254,6 @@ ResamplerWrapper::setupBuffersFor(int nframes)
     if (m_sourceRate == 0) return;
     if (m_sourceRate == m_targetRate) return;
 
-#ifdef DEBUG_RESAMPLER_WRAPPER
-    cerr << "ResamplerWrapper::setupBuffersFor: Source rate "
-         << m_sourceRate << " -> target rate " << m_targetRate << endl;
-#endif
-
     int slack = 100;
     double ratio = double(m_targetRate) / double(m_sourceRate);
     if (ratio > 50.0) {
@@ -231,12 +261,16 @@ ResamplerWrapper::setupBuffersFor(int nframes)
     }
     int newResampledSize = nframes + slack;
     int newInSize = int(newResampledSize / ratio);
-
-#ifdef DEBUG_RESAMPLER_WRAPPER
-    cerr << "newResampledSize = " << newResampledSize << ", newInSize = " << newInSize << endl;
-#endif
     
     if (!m_resampled || newResampledSize > m_resampledSize) {
+        {
+            ostringstream os;
+            os << "ResamplerWrapper::setupBuffersFor: Source rate "
+               << m_sourceRate << " -> target rate " << m_targetRate
+               << "; newResampledSize = " << newResampledSize
+               << ", newInSize = " << newInSize;
+            Log::log(os.str());
+        }
         m_resampled = reallocate_and_zero_extend_channels
             (m_resampled,
              m_channels, m_resampledSize,
@@ -270,7 +304,10 @@ ResamplerWrapper::getSourceSamples(float *const *samples, int nchannels, int nfr
     }
     
     if (nchannels != m_channels) {
-        cerr << "nchannels = " << nchannels << ", m_channels = " << m_channels << endl;
+        ostringstream os;
+        os << "ERROR: ResamplerWrapper::getSourceSamples: nchannels = "
+           << nchannels << " but m_channels = " << m_channels;
+        Log::log(os.str());
         throw std::logic_error("Different number of channels requested than ResamplerWrapper declared");
     }
     
