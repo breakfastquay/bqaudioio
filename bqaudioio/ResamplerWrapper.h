@@ -135,7 +135,7 @@ private:
     // These three should be called with m_mutex held already
     void deconstructResampler();
     void reconstructResampler();
-    void setupBuffersFor(int reqsize);
+    void checkBuffersFor(int reqsize);
 
     ResamplerWrapper(const ResamplerWrapper &)=delete;
     ResamplerWrapper &operator=(const ResamplerWrapper &)=delete;

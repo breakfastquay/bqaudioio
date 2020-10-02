@@ -103,7 +103,16 @@ ResamplerWrapper::changeApplicationSampleRate(int newRate)
     }
 
     m_sourceRate = newRate;
-    setupBuffersFor(defaultMaxBufferSize);
+
+    if (m_sourceRate == 0) {
+        Log::log("ResamplerWrapper::changeApplicationSampleRate: Note: "
+                 "Source rate is zero, won't be resampling");
+    } else if (m_sourceRate == m_targetRate) {
+        Log::log("ResamplerWrapper::changeApplicationSampleRate: Note: "
+                 "Source rate is equal to target rate, won't be resampling");
+    }
+    
+    checkBuffersFor(defaultMaxBufferSize);
 }
 
 std::string
@@ -245,11 +254,11 @@ ResamplerWrapper::reconstructResampler()
     m_resampler = new Resampler(params, m_channels);
     
     m_ptrs = new float *[m_channels];
-    setupBuffersFor(defaultMaxBufferSize);
+    checkBuffersFor(defaultMaxBufferSize);
 }
 
 void
-ResamplerWrapper::setupBuffersFor(int nframes)
+ResamplerWrapper::checkBuffersFor(int nframes)
 {
     if (m_sourceRate == 0) return;
     if (m_sourceRate == m_targetRate) return;
@@ -265,7 +274,7 @@ ResamplerWrapper::setupBuffersFor(int nframes)
     if (!m_resampled || newResampledSize > m_resampledSize) {
         {
             ostringstream os;
-            os << "ResamplerWrapper::setupBuffersFor: Source rate "
+            os << "ResamplerWrapper::checkBuffersFor: Source rate "
                << m_sourceRate << " -> target rate " << m_targetRate
                << "; newResampledSize = " << newResampledSize
                << ", newInSize = " << newInSize;
@@ -296,7 +305,7 @@ ResamplerWrapper::getSourceSamples(float *const *samples, int nchannels, int nfr
     cerr << "ResamplerWrapper::getSourceSamples(" << nframes << "): source rate = " << m_sourceRate << ", target rate = " << m_targetRate << ", channels = " << m_channels << endl;
 #endif
     
-    setupBuffersFor(nframes);
+    checkBuffersFor(nframes);
 
     if (m_sourceRate == 0) {
         v_zero_channels(samples, nchannels, nframes);
