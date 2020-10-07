@@ -49,6 +49,9 @@
 
 #include <mutex>
 
+#include "bqaudiostream/AudioWriteStreamFactory.h"
+#include "bqaudiostream/AudioWriteStream.h"
+
 #ifndef __LINUX__
 #ifndef _WIN32
 #include <pthread.h>
@@ -122,7 +125,7 @@ static bool initialise() {
             paio_working = true;
         }
     }
-
+    
     return paio_working;
 }
 
@@ -560,8 +563,12 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
                      const PaStreamCallbackTimeInfo *,
                      PaStreamCallbackFlags)
 {
-#ifdef DEBUG_AUDIO_PORT_AUDIO_IO    
-    cout << "PortAudioIO::process(" << pa_nframes << ")" << endl;
+#ifdef DEBUG_AUDIO_PORT_AUDIO_IO
+    {
+        ostringstream os;
+        os << "process: " << pa_nframes << " frames";
+        log(os.str());
+    }
 #endif
 
     if (!m_prioritySet) {
@@ -577,6 +584,15 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
     int nframes = int(pa_nframes);
 
     if (nframes > m_bufferSize) {
+#ifdef DEBUG_AUDIO_PORT_AUDIO_IO
+        {
+            ostringstream os;
+            os << "extending channel buffers from "
+               << m_bufferSize << " to " << nframes << " frames (across "
+               << m_bufferChannels << " channel(s))";
+            log(os.str());
+        }
+#endif
         m_buffers = reallocate_and_zero_extend_channels
             (m_buffers,
              m_bufferChannels, m_bufferSize,
@@ -590,6 +606,10 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
     float peakLeft, peakRight;
 
     if (m_target && input) {
+
+#ifdef DEBUG_AUDIO_PORT_AUDIO_IO
+        log("have input and a record target, recording");
+#endif
 
         v_deinterleave
             (m_buffers, input, m_inputChannels, nframes);
@@ -616,9 +636,26 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
 
     if (m_source && output) {
 
-        int received = m_source->getSourceSamples(m_buffers, m_sourceChannels, nframes);
+#ifdef DEBUG_AUDIO_PORT_AUDIO_IO
+        log("have output and a playback source, playing");
+#endif
+
+        int received = m_source->getSourceSamples
+            (m_buffers, m_sourceChannels, nframes);
+
+#ifdef DEBUG_AUDIO_PORT_AUDIO_IO
+        {
+            ostringstream os;
+            os << "received " << received << " frames from application source";
+            log(os.str());
+        }
+#endif
 
         if (received < nframes) {
+            ostringstream os;
+            os << "WARNING: requested " << nframes
+               << " from application source, received only " << received;
+            log(os.str());
             for (int c = 0; c < m_sourceChannels; ++c) {
                 v_zero(m_buffers[c] + received, nframes - received);
             }
@@ -627,7 +664,8 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
         v_reconfigure_channels_inplace
             (m_buffers, m_outputChannels, m_sourceChannels, nframes);
 
-        auto gain = Gains::gainsFor(m_outputGain, m_outputBalance, m_outputChannels);
+        auto gain = Gains::gainsFor
+            (m_outputGain, m_outputBalance, m_outputChannels);
         for (int c = 0; c < m_outputChannels; ++c) {
             v_scale(m_buffers[c], gain[c], nframes);
         }
@@ -646,7 +684,7 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
 
         v_interleave
             (output, m_buffers, m_outputChannels, nframes);
-        
+
         m_source->setOutputLevels(peakLeft, peakRight);
 
     } else if (m_outputChannels > 0) {
