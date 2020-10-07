@@ -162,11 +162,11 @@ getDeviceNames(bool record)
         const PaDeviceInfo *info = Pa_GetDeviceInfo(i);
 
         ostringstream os;
-        os << "device " << i << " of " << count << ":" << endl;
-        os << "name = \"" << info->name << "\"" << endl;
-        os << "maxInputChannels = " << info->maxInputChannels << endl;
-        os << "maxOutputChannels = " << info->maxOutputChannels << endl;
-        os << "defaultSampleRate = " << info->defaultSampleRate;
+        os << i+1 << "/" << count << ": "
+           << "\"" << info->name << "\","
+           << " channels in " << info->maxInputChannels
+           << ", out " << info->maxOutputChannels
+           << ", default rate " << info->defaultSampleRate;
         log(os.str());
 
         if (record) {
