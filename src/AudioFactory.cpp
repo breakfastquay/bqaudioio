@@ -59,10 +59,6 @@ vector<string>
 AudioFactory::getImplementationNames()
 {
     vector<string> names;
-    
-#ifdef HAVE_JACK
-    names.push_back("jack");
-#endif
 
 #ifdef HAVE_LIBPULSE
     names.push_back("pulse");
@@ -70,6 +66,10 @@ AudioFactory::getImplementationNames()
 
 #ifdef HAVE_PORTAUDIO
     names.push_back("port");
+#endif
+    
+#ifdef HAVE_JACK
+    names.push_back("jack");
 #endif
 
     return names;
