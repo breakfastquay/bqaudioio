@@ -217,15 +217,15 @@ static int dynamic_jack_port_unregister(jack_client_t *client,
         return f(arg); \
     }
 
-dynamic1(jack_client_t *, jack_client_new, const char *, 0);
-dynamic1(jack_nframes_t, jack_get_buffer_size, jack_client_t *, 0);
-dynamic1(jack_nframes_t, jack_get_sample_rate, jack_client_t *, 0);
-dynamic1(int, jack_activate, jack_client_t *, 1);
-dynamic1(int, jack_deactivate, jack_client_t *, 1);
-dynamic1(int, jack_client_close, jack_client_t *, 1);
-dynamic1(jack_nframes_t, jack_port_get_latency, jack_port_t *, 0);
-dynamic1(const char *, jack_port_name, const jack_port_t *, 0);
-dynamic1(jack_nframes_t, jack_frame_time, jack_client_t *, 0);
+dynamic1(jack_client_t *, jack_client_new, const char *, 0)
+dynamic1(jack_nframes_t, jack_get_buffer_size, jack_client_t *, 0)
+dynamic1(jack_nframes_t, jack_get_sample_rate, jack_client_t *, 0)
+dynamic1(int, jack_activate, jack_client_t *, 1)
+dynamic1(int, jack_deactivate, jack_client_t *, 1)
+dynamic1(int, jack_client_close, jack_client_t *, 1)
+dynamic1(jack_nframes_t, jack_port_get_latency, jack_port_t *, 0)
+dynamic1(const char *, jack_port_name, const jack_port_t *, 0)
+dynamic1(jack_nframes_t, jack_frame_time, jack_client_t *, 0)
 
 #define jack_client_new dynamic_jack_client_new
 #define jack_client_open dynamic_jack_client_open
