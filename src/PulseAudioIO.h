@@ -43,6 +43,7 @@
 
 #include <mutex>
 #include <thread>
+#include <atomic>
 
 #include <vector>
 #include <string>
@@ -122,6 +123,7 @@ protected:
     bool m_captureReady;
     bool m_playbackReady;
 
+    std::atomic<bool> m_aboutToAct;
     bool m_suspended;
 
     std::string m_startupError;

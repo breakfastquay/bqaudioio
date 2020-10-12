@@ -199,6 +199,7 @@ PulseAudioIO::~PulseAudioIO()
     
         {
             if (m_loop) {
+                m_aboutToAct = true;
                 pa_mainloop_wakeup(m_loop);
             }
         
@@ -206,6 +207,7 @@ PulseAudioIO::~PulseAudioIO()
             lock_guard<mutex> lguard(m_loopMutex);
             lock_guard<mutex> sguard(m_streamMutex);
 
+            m_aboutToAct = false;
             m_done = true;
 
             if (m_loop) {
@@ -272,7 +274,14 @@ PulseAudioIO::threadRun()
             }
         }
 
-        this_thread::yield();
+        if (m_aboutToAct) {
+            // another thread awoke us because it wanted to do
+            // something specific - sleep for a moment to ensure it
+            // can acquire its lock
+            this_thread::sleep_for(std::chrono::milliseconds(100));
+        } else {
+            this_thread::yield();
+        }
 
         {
 #ifdef DEBUG_PULSE_AUDIO_IO
@@ -619,7 +628,10 @@ PulseAudioIO::streamStateChanged(pa_stream *stream)
 void
 PulseAudioIO::suspend()
 {
-    if (m_loop) pa_mainloop_wakeup(m_loop);
+    if (m_loop) {
+        m_aboutToAct = true;
+        pa_mainloop_wakeup(m_loop);
+    }
     
 #ifdef DEBUG_PULSE_AUDIO_IO
     cerr << "PulseAudioIO::suspend: locking all mutexes" << endl;
@@ -639,6 +651,7 @@ PulseAudioIO::suspend()
     cerr << "PulseAudioIO::suspend: stream mutex ok" << endl;
 #endif
 
+    m_aboutToAct = false;
     if (m_done) return;
     
     if (m_in) {
@@ -661,7 +674,10 @@ PulseAudioIO::suspend()
 void
 PulseAudioIO::resume()
 {
-    if (m_loop) pa_mainloop_wakeup(m_loop);
+    if (m_loop) {
+        m_aboutToAct = true;
+        pa_mainloop_wakeup(m_loop);
+    }
     
 #ifdef DEBUG_PULSE_AUDIO_IO
     cerr << "PulseAudioIO::resume: locking all mutexes" << endl;
@@ -680,6 +696,8 @@ PulseAudioIO::resume()
 #ifdef DEBUG_PULSE_AUDIO_IO
     cerr << "PulseAudioIO::suspend: stream mutex ok" << endl;
 #endif
+
+    m_aboutToAct = false;
     if (m_done) return;
 
     if (m_in) {
