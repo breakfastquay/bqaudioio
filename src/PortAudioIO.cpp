@@ -49,9 +49,6 @@
 
 #include <mutex>
 
-#include "bqaudiostream/AudioWriteStreamFactory.h"
-#include "bqaudiostream/AudioWriteStream.h"
-
 #ifndef __LINUX__
 #ifndef _WIN32
 #include <pthread.h>
