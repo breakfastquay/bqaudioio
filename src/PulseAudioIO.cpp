@@ -90,6 +90,7 @@ PulseAudioIO::PulseAudioIO(Mode mode,
     m_done(false),
     m_captureReady(false),
     m_playbackReady(false),
+    m_aboutToAct(false),
     m_suspended(false)
 {
     log("PulseAudioIO: starting");
