@@ -684,7 +684,7 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
 
         m_source->setOutputLevels(peakLeft, peakRight);
 
-    } else if (m_outputChannels > 0) {
+    } else if (m_outputChannels > 0 && output) {
 
         v_zero(output, m_outputChannels * nframes);
     }
