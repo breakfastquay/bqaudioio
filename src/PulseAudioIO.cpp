@@ -598,7 +598,7 @@ PulseAudioIO::streamStateChanged(pa_stream *stream)
             if (m_target && (stream == m_in)) {
                 m_target->setSystemRecordSampleRate(m_sampleRate);
                 m_target->setSystemRecordChannelCount(m_inSpec.channels);
-                if (pa_stream_get_latency(m_out, &latency, &negative)) {
+                if (pa_stream_get_latency(m_in, &latency, &negative)) {
                     log("streamStateChanged: Failed to query record latency");
                 } else {
                     ostringstream os;
