@@ -71,7 +71,7 @@ public:
      * application. The source or IO will attempt to open its device
      * with this number of channels, though it might not succeed; it
      * will provide the actual number of channels through a subsequent
-     * call to setSystemPlaybackChannelCount and will mixdown as
+     * call to setSystemRecordChannelCount and will mixdown as
      * appropriate.
      *
      * This must not be zero and is not expected to change during the
