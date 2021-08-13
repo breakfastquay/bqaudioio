@@ -184,7 +184,17 @@ ResamplerWrapper::setSystemPlaybackChannelCount(int c)
 void
 ResamplerWrapper::setSystemPlaybackLatency(int latency)
 {
-    m_source->setSystemPlaybackLatency(latency);
+    // The latency is provided to us in samples at m_targetRate, but
+    // we need to report it to the source in samples at
+    // m_sourceRate. (This does mean it might not be exact)
+
+    if (m_sourceRate != 0 && m_targetRate != 0 &&
+        m_sourceRate != m_targetRate) {
+        double atSourceRate = (double(latency) / m_targetRate) * m_sourceRate;
+        m_source->setSystemPlaybackLatency(int(round(atSourceRate)));
+    } else {
+        m_source->setSystemPlaybackLatency(latency);
+    }
 }
 
 void
