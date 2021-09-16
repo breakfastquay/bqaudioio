@@ -249,6 +249,8 @@ ResamplerWrapper::reconstructResampler()
     
     Resampler::Parameters params;
     params.quality = Resampler::FastestTolerable;
+    params.dynamism = Resampler::RatioMostlyFixed;
+    params.ratioChange = Resampler::SuddenRatioChange;
     params.maxBufferSize = defaultMaxBufferSize;
     if (m_sourceRate != 0) {
         params.initialSampleRate = m_sourceRate;
@@ -340,7 +342,7 @@ ResamplerWrapper::getSourceSamples(float *const *samples, int nchannels, int nfr
     int req = int(round(reqResampled / ratio)) + 1;
 
     int received = m_source->getSourceSamples(m_in, m_channels, req);
-    
+
     for (int i = 0; i < m_channels; ++i) {
         m_ptrs[i] = m_resampled[i] + m_resampledFill;
     }
