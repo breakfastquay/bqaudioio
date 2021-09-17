@@ -249,8 +249,10 @@ ResamplerWrapper::reconstructResampler()
     
     Resampler::Parameters params;
     params.quality = Resampler::FastestTolerable;
+    /*!!! to be restored following resampler merge
     params.dynamism = Resampler::RatioMostlyFixed;
     params.ratioChange = Resampler::SuddenRatioChange;
+    */
     params.maxBufferSize = defaultMaxBufferSize;
     if (m_sourceRate != 0) {
         params.initialSampleRate = m_sourceRate;
