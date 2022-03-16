@@ -619,9 +619,8 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
         for (int c = 0; c < m_targetChannels && c < 2; ++c) {
             float peak = 0.f;
             for (int i = 0; i < nframes; ++i) {
-                if (m_buffers[c][i] > peak) {
-                    peak = m_buffers[c][i];
-                }
+                float sample = fabsf(m_buffers[c][i]);
+                if (sample > peak) peak = sample;
             }
             if (c == 0) peakLeft = peak;
             if (c > 0 || m_targetChannels == 1) peakRight = peak;
@@ -671,9 +670,8 @@ PortAudioIO::process(const void *inputBuffer, void *outputBuffer,
         for (int c = 0; c < m_outputChannels && c < 2; ++c) {
             float peak = 0.f;
             for (int i = 0; i < nframes; ++i) {
-                if (m_buffers[c][i] > peak) {
-                    peak = m_buffers[c][i];
-                }
+                float sample = fabsf(m_buffers[c][i]);
+                if (sample > peak) peak = sample;
             }
             if (c == 0) peakLeft = peak;
             if (c == 1 || m_outputChannels == 1) peakRight = peak;

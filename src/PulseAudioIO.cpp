@@ -430,9 +430,8 @@ PulseAudioIO::streamWrite(int requested)
     for (int c = 0; c < channels && c < 2; ++c) {
 	float peak = 0.f;
         for (int i = 0; i < nframes; ++i) {
-            if (m_buffers[c][i] > peak) {
-                peak = m_buffers[c][i];
-            }
+            float sample = fabsf(m_buffers[c][i]);
+            if (sample > peak) peak = sample;
         }
         if (c == 0) peakLeft = peak;
         if (c == 1 || channels == 1) peakRight = peak;
