@@ -402,7 +402,7 @@ PortAudioIO::PortAudioIO(Mode mode,
         os << "block size " << m_bufferSize;
         log(os.str());
     }
-
+    
     if (m_source) {
 	m_source->setSystemPlaybackBlockSize(m_bufferSize);
 	m_source->setSystemPlaybackSampleRate(int(round(m_sampleRate)));
@@ -411,6 +411,9 @@ PortAudioIO::PortAudioIO(Mode mode,
     }
 
     if (m_target) {
+        if (m_target->getApplicationChannelCount() == 0) {
+            m_targetChannels = m_inputChannels;
+        }
 	m_target->setSystemRecordBlockSize(m_bufferSize);
 	m_target->setSystemRecordSampleRate(int(round(m_sampleRate)));
 	m_target->setSystemRecordLatency(m_inputLatency);
@@ -433,7 +436,17 @@ PortAudioIO::PortAudioIO(Mode mode,
 	return;
     }
 
-    log("started successfully");
+    ostringstream os;
+    os << "started successfully: rate " << m_sampleRate
+       << ", device input channels " << m_inputChannels
+       << " to record target channels " << m_targetChannels
+       << ", play source channels " << m_sourceChannels
+       << " to device output channels " << m_outputChannels
+       << ", buffer channels " << m_bufferChannels
+       << ", buffer size " << m_bufferSize
+       << ", input latency " << m_inputLatency
+       << ", output latency " << m_outputLatency;
+    log(os.str());
 }
 
 PortAudioIO::~PortAudioIO()
