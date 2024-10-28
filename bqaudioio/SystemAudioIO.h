@@ -71,6 +71,15 @@ public:
      */
     bool isReady() const { return isSourceReady() && isTargetReady(); }
 
+    /**
+     * Enable or disable recording. Both recording and playback are
+     * enabled by default; if you call enableRecordSide(false), the
+     * record side may be switched off on subsequent stream resumption
+     * until any following call to enableRecordSide(true). This is
+     * optional, not all implementations will implement it.
+     */
+    virtual void enableRecordSide(bool enable) = 0;
+    
 protected:
     SystemAudioIO(ApplicationRecordTarget *target,
                   ApplicationPlaybackSource *source) :
