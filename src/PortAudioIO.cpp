@@ -241,7 +241,9 @@ PortAudioIO::PortAudioIO(Mode mode,
                          string recordDevice,
                          string playbackDevice) :
     SystemAudioIO(target, source),
-    m_stream(0),
+    m_stream(nullptr),
+    m_recordDevice(0),
+    m_playbackDevice(0),
     m_mode(mode),
     m_bufferSize(0),
     m_sampleRate(0),
@@ -249,7 +251,8 @@ PortAudioIO::PortAudioIO(Mode mode,
     m_outputLatency(0),
     m_prioritySet(false),
     m_suspended(false),
-    m_buffers(0),
+    m_recordEnabled(true),
+    m_buffers(nullptr),
     m_bufferChannels(0)
 {
     log("starting");
@@ -267,23 +270,18 @@ PortAudioIO::PortAudioIO(Mode mode,
         m_source = 0;
     }
     
-    PaError err;
-
-    m_bufferSize = 0;
-
-    PaStreamParameters ip, op;
-    ip.device = getDeviceIndex(recordDevice, true);
-    op.device = getDeviceIndex(playbackDevice, false);
+    m_recordDevice = getDeviceIndex(recordDevice, true);
+    m_playbackDevice = getDeviceIndex(playbackDevice, false);
 
     {
         ostringstream os;
-        os << "Obtained playback device index " << op.device
-           << " and record device index " << ip.device;
+        os << "Obtained playback device index " << m_playbackDevice
+           << " and record device index " << m_recordDevice;
         log(os.str());
     }
 
-    const PaDeviceInfo *inInfo = Pa_GetDeviceInfo(ip.device);
-    const PaDeviceInfo *outInfo = Pa_GetDeviceInfo(op.device);
+    const PaDeviceInfo *inInfo = Pa_GetDeviceInfo(m_recordDevice);
+    const PaDeviceInfo *outInfo = Pa_GetDeviceInfo(m_playbackDevice);
     if (outInfo) {
         m_sampleRate = outInfo->defaultSampleRate;
     }
@@ -335,54 +333,14 @@ PortAudioIO::PortAudioIO(Mode mode,
         outInfo->maxOutputChannels > 0) {
         m_outputChannels = outInfo->maxOutputChannels;
     }
-    
-    ip.channelCount = m_inputChannels;
-    op.channelCount = m_outputChannels;
-    ip.sampleFormat = paFloat32;
-    op.sampleFormat = paFloat32;
-    ip.suggestedLatency = 0.2;
-    op.suggestedLatency = 0.2;
-    ip.hostApiSpecificStreamInfo = 0;
-    op.hostApiSpecificStreamInfo = 0;
 
-    m_bufferSize = 0;
-    err = openStream(m_mode, &m_stream, &ip, &op, m_sampleRate,
-                     paFramesPerBufferUnspecified, this);
-
-    if (err != paNoError) {
-	m_bufferSize = 1024;
-        err = openStream(m_mode, &m_stream, &ip, &op, m_sampleRate,
-                         1024, this);
-    }
-
-    if (err != paNoError) {
-        if (m_inputChannels != 2 || m_outputChannels != 2) {
-
-            log(string("WARNING: Failed to open PortAudio stream: ") + 
-                Pa_GetErrorText(err) + ": trying again with 2x2 configuration");
-            
-            m_inputChannels = 2;
-            m_outputChannels = 2;
-            ip.channelCount = m_inputChannels;
-            op.channelCount = m_outputChannels;
-
-            m_bufferSize = 0;
-            err = openStream(m_mode, &m_stream, &ip, &op, m_sampleRate,
-                             paFramesPerBufferUnspecified, this);
-
-            m_bufferSize = 1024;
-            if (err != paNoError) {
-                err = openStream(m_mode, &m_stream, &ip, &op, m_sampleRate,
-                                 1024, this);
-            }
-        }
-    }
+    PaError err = openStream();
     
     if (err != paNoError) {
         m_startupError = "Failed to open PortAudio stream: ";
         m_startupError += Pa_GetErrorText(err);
 	log("ERROR: " + m_startupError);
-	m_stream = 0;
+	m_stream = nullptr;
         deinitialise();
 	return;
     }
@@ -431,7 +389,7 @@ PortAudioIO::PortAudioIO(Mode mode,
         m_startupError += Pa_GetErrorText(err);
         log("ERROR: " + m_startupError);
 	Pa_CloseStream(m_stream);
-	m_stream = 0;
+	m_stream = nullptr;
         deinitialise();
 	return;
     }
@@ -451,8 +409,81 @@ PortAudioIO::PortAudioIO(Mode mode,
 
 PortAudioIO::~PortAudioIO()
 {
+    auto err = closeStream();
+    if (err != paNoError) {
+        log("ERROR: Failed to close PortAudio stream");
+    }
+    
+    deallocate_channels(m_buffers, m_bufferChannels);
+    deinitialise();
+    log("closed");
+}
+
+PaError
+PortAudioIO::openStream()
+{
+    PaError err = paNoError;
+    PaStreamParameters ip, op;
+
+    ip.device = m_recordDevice;
+    op.device = m_playbackDevice;
+    ip.channelCount = m_inputChannels;
+    op.channelCount = m_outputChannels;
+    ip.sampleFormat = paFloat32;
+    op.sampleFormat = paFloat32;
+    ip.suggestedLatency = 0.2;
+    op.suggestedLatency = 0.2;
+    ip.hostApiSpecificStreamInfo = 0;
+    op.hostApiSpecificStreamInfo = 0;
+
+    Mode activeMode = m_mode;
+    if (m_mode == Mode::Duplex && !m_recordEnabled) {
+        activeMode = Mode::Playback;
+    }
+    
+    m_bufferSize = 0;
+    err = openStreamStatic
+        (activeMode, &m_stream, &ip, &op, m_sampleRate,
+         paFramesPerBufferUnspecified, this);
+
+    if (err != paNoError) {
+	m_bufferSize = 1024;
+        err = openStreamStatic
+            (activeMode, &m_stream, &ip, &op, m_sampleRate, 1024, this);
+    }
+
+    if (err != paNoError) {
+        if (m_inputChannels != 2 || m_outputChannels != 2) {
+
+            log(string("WARNING: Failed to open PortAudio stream: ") + 
+                Pa_GetErrorText(err) + ": trying again with 2x2 configuration");
+            
+            m_inputChannels = 2;
+            m_outputChannels = 2;
+            ip.channelCount = m_inputChannels;
+            op.channelCount = m_outputChannels;
+
+            m_bufferSize = 0;
+            err = openStreamStatic
+                (activeMode, &m_stream, &ip, &op, m_sampleRate,
+                 paFramesPerBufferUnspecified, this);
+
+            m_bufferSize = 1024;
+            if (err != paNoError) {
+                err = openStreamStatic
+                    (activeMode, &m_stream, &ip, &op, m_sampleRate, 1024, this);
+            }
+        }
+    }
+
+    return err;
+}
+
+PaError
+PortAudioIO::closeStream()
+{
+    PaError err = paNoError;
     if (m_stream) {
-	PaError err;
         if (!m_suspended) {
             err = Pa_StopStream(m_stream);
             if (err != paNoError) {
@@ -467,20 +498,44 @@ PortAudioIO::~PortAudioIO()
 	if (err != paNoError) {
 	    log("ERROR: Failed to close PortAudio stream");
 	}
-        deallocate_channels(m_buffers, m_bufferChannels);
-        deinitialise();
-        log("closed");
+        m_stream = nullptr;
     }
+    return err;
+}
+
+void
+PortAudioIO::suppressRecordSide(bool suppress)
+{
+    bool enabled = !suppress;
+    if (enabled == m_recordEnabled) {
+        return;
+    }
+    bool wasSuspended = m_suspended;
+    PaError err = paNoError;
+    if (m_stream) {
+        err = closeStream();
+        if (err != paNoError) {
+            log("ERROR: Failed to close PortAudio stream in order to change record mode");
+        }
+        m_recordEnabled = enabled;
+        err = openStream();
+        if (err != paNoError) {
+            log("ERROR: Failed to reopen PortAudio stream in order to change record mode");
+        }
+        if (!wasSuspended) {
+            resume();
+        }
+    }        
 }
 
 PaError
-PortAudioIO::openStream(Mode mode,
-                        PaStream **stream,
-                        const PaStreamParameters *inputParameters,
-                        const PaStreamParameters *outputParameters,
-                        double sampleRate,
-                        unsigned long framesPerBuffer,
-                        void *data)
+PortAudioIO::openStreamStatic(Mode mode,
+                              PaStream **stream,
+                              const PaStreamParameters *inputParameters,
+                              const PaStreamParameters *outputParameters,
+                              double sampleRate,
+                              unsigned long framesPerBuffer,
+                              void *data)
 {
     switch (mode) {
     case Mode::Playback:

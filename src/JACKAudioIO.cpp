@@ -336,6 +336,13 @@ JACKAudioIO::setup(bool connectRecord, bool connectPlayback)
     if (m_target) {
         m_target->setSystemRecordChannelCount(channelsRec);
     }
+
+    if (playPorts) {
+        jack_free(playPorts);
+    }
+    if (capPorts) {
+        jack_free(capPorts);
+    }
 }
 
 int

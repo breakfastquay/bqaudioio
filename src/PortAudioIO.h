@@ -70,6 +70,8 @@ public:
     virtual void suspend() override;
     virtual void resume() override;
 
+    virtual void suppressRecordSide(bool) override;
+    
     std::string getStartupErrorString() const { return m_startupError; }
     
 protected:
@@ -77,10 +79,13 @@ protected:
                 const PaStreamCallbackTimeInfo *timeInfo,
                 PaStreamCallbackFlags statusFlags);
 
-    static PaError openStream(Mode, PaStream **,
-                              const PaStreamParameters *,
-                              const PaStreamParameters *,
-                              double, unsigned long, void *);
+    PaError openStream();
+    PaError closeStream();
+    
+    static PaError openStreamStatic(Mode, PaStream **,
+                                    const PaStreamParameters *,
+                                    const PaStreamParameters *,
+                                    double, unsigned long, void *);
     
     static int processStatic(const void *, void *, unsigned long,
                              const PaStreamCallbackTimeInfo *,
@@ -88,6 +93,9 @@ protected:
 
     PaStream *m_stream;
 
+    PaDeviceIndex m_recordDevice;
+    PaDeviceIndex m_playbackDevice;
+    
     Mode m_mode;
     int m_bufferSize;
     double m_sampleRate;
@@ -99,6 +107,7 @@ protected:
     int m_outputLatency;
     bool m_prioritySet;
     bool m_suspended;
+    bool m_recordEnabled;
     float **m_buffers;
     int m_bufferChannels;
     std::string m_startupError;

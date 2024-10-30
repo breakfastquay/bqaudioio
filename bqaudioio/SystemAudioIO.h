@@ -71,6 +71,17 @@ public:
      */
     bool isReady() const { return isSourceReady() && isTargetReady(); }
 
+    /**
+     * Suppress or re-enable recording. By default both recording and
+     * playback are enabled, and an active stream will be duplex. A
+     * call to suppressRecordSide(true) may be used to hint that the
+     * record side should remain closed until any following call to
+     * suppressRecordSide(false). These calls should be made while the
+     * stream is suspended. This is only a hint; not all
+     * implementations will implement it.
+     */
+    virtual void suppressRecordSide(bool suppress) = 0;
+    
 protected:
     SystemAudioIO(ApplicationRecordTarget *target,
                   ApplicationPlaybackSource *source) :

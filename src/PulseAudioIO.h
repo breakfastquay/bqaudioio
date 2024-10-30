@@ -76,6 +76,8 @@ public:
     void suspend() override;
     void resume() override;
 
+    void suppressRecordSide(bool) override {}
+    
     std::string getStartupErrorString() const { return m_startupError; }
 
 protected:
