@@ -208,6 +208,15 @@ static int dynamic_jack_port_unregister(jack_client_t *client,
     return f(client, port);
 }
 
+static void dynamic_jack_free(void *ptr)
+{
+    typedef void(*func)(void *);
+    void *s = symbol("jack_free");
+    if (!s) return;
+    func f = (func)s;
+    f(ptr);
+}    
+
 #define dynamic1(rv, name, argtype, failval) \
     static rv dynamic_##name(argtype arg) { \
         typedef rv (*func) (argtype); \
@@ -245,6 +254,7 @@ dynamic1(jack_nframes_t, jack_frame_time, jack_client_t *, 0)
 #define jack_port_get_buffer dynamic_jack_port_get_buffer
 #define jack_port_get_latency_range dynamic_jack_port_get_latency_range
 #define jack_frame_time dynamic_jack_frame_time
+#define jack_free dynamic_jack_free
 
 }
 
