@@ -504,8 +504,9 @@ PortAudioIO::closeStream()
 }
 
 void
-PortAudioIO::enableRecordSide(bool enabled)
+PortAudioIO::suppressRecordSide(bool suppress)
 {
+    bool enabled = !suppress;
     if (enabled == m_recordEnabled) {
         return;
     }

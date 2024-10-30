@@ -66,6 +66,8 @@ public:
     void suspend() override {}
     void resume() override {}
     
+    void suppressRecordSide(bool) override {}
+    
     double getCurrentTime() const override;
 
     std::string getStartupErrorString() const { return m_startupError; }

@@ -70,7 +70,7 @@ public:
     virtual void suspend() override;
     virtual void resume() override;
 
-    virtual void enableRecordSide(bool) override;
+    virtual void suppressRecordSide(bool) override;
     
     std::string getStartupErrorString() const { return m_startupError; }
     
